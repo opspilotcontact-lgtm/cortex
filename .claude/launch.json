@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "phase-0",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8080", "--directory", "phase-0-validation"],
+      "port": 8080
+    },
+    {
+      "name": "cortex-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "mobile", "run", "web", "--", "--clear", "--port", "8081"],
+      "port": 8081
+    }
+  ]
+}

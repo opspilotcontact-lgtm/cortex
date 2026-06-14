@@ -1,0 +1,33 @@
+# ── dependencias ──
+node_modules/
+**/node_modules/
+
+# ── Expo / build / cachés ──
+.expo/
+**/.expo/
+dist/
+**/dist/
+web-build/
+*.tsbuildinfo
+.metro-health-check*
+
+# ── entorno y secretos ──
+.env
+.env.*
+!.env.example
+*.key
+anthropic.key
+**/anthropic.key
+
+# ── Supabase local ──
+supabase/.branches/
+supabase/.temp/
+
+# ── contenido con copyright (libros PDF) — NO versionar ──
+CONTENIDO/
+
+# ── varios ──
+*.log
+.DS_Store
+**/.DS_Store
+Thumbs.db

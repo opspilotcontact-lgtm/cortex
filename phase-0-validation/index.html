@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#F4EFE6" />
+<title>Cortex · Fase 0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400..600&family=Newsreader:ital,opsz,wght@0,6..72,400..500;1,6..72,400&family=Hanken+Grotesk:wght@400;500;600;700&family=Syne:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ════════════════════════════════════════════════════════════════
+     SISTEMA DE TEMAS
+     :root            → mundo neutro "Cortex" (inicio / cierre / datos)
+     [data-theme=...] → cada MATERIA tiene su mundo: colores + tipografía
+     Cambiar de materia se SIENTE distinto. Eso es parte del gancho (§1).
+     ════════════════════════════════════════════════════════════════ */
+  :root {
+    --paper: #f4efe6;
+    --surface: #ece5d8;
+    --ink: #211c16;
+    --ink-soft: #5c5346;
+    --ink-faint: #9a9080;
+    --line: #ddd3c1;
+    --accent: #b8512f;        /* marca Cortex */
+    --accent-2: #b8512f;
+    --grain-op: .04;
+    --grid-op: 0;
+
+    --display: "Fraunces", Georgia, serif;
+    --read: "Newsreader", Georgia, serif;
+    --ui: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --kicker: var(--ui);
+    --kicker-pre: "";
+  }
+
+  /* ── MATERIA: Hábitos Atómicos — cálido, claro, editorial ── */
+  [data-theme="habits"] {
+    --paper: #f3ead9;
+    --surface: #ece0c9;
+    --ink: #2a1d12;
+    --ink-soft: #6a5740;
+    --ink-faint: #a89275;
+    --line: #ddccae;
+    --accent: #c0532a;        /* terracota */
+    --accent-2: #b07d24;      /* ocre (el giro) */
+    --grain-op: .05;
+    --grid-op: 0;
+
+    --display: "Fraunces", Georgia, serif;
+    --read: "Newsreader", Georgia, serif;
+    --kicker: var(--ui);
+    --kicker-pre: "";
+  }
+
+  /* ── MATERIA: Pensamiento sistémico — frío, oscuro, técnico ── */
+  [data-theme="systems"] {
+    --paper: #0e1719;
+    --surface: #16262a;
+    --ink: #e8efe9;
+    --ink-soft: #9bb4ae;
+    --ink-faint: #5d7a74;
+    --line: #25403d;
+    --accent: #5fd3b6;        /* menta luminosa */
+    --accent-2: #e7a948;      /* ámbar (el giro) */
+    --grain-op: .06;
+    --grid-op: 1;
+
+    --display: "Syne", "Hanken Grotesk", sans-serif;
+    --read: "Hanken Grotesk", sans-serif;
+    --kicker: "Space Mono", monospace;
+    --kicker-pre: "// ";
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior: none; }
+  body {
+    font-family: var(--ui);
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+    transition: background-color .6s ease, color .6s ease;
+  }
+
+  /* textura: grano (papel) + rejilla (sistemas) */
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+    opacity: var(--grain-op); mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    transition: opacity .6s ease;
+  }
+  #app::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    opacity: var(--grid-op); transition: opacity .6s ease;
+    background-image:
+      linear-gradient(rgba(95,211,182,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(95,211,182,.06) 1px, transparent 1px);
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+            mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+  }
+
+  #app { height: 100%; width: 100%; max-width: 720px; margin: 0 auto; position: relative; }
+
+  .screen {
+    position: absolute; inset: 0; z-index: 1;
+    display: flex; flex-direction: column;
+    padding: max(env(safe-area-inset-top), 26px) 26px max(env(safe-area-inset-bottom), 26px);
+    opacity: 0; visibility: hidden;
+    transition: opacity .5s ease;
+  }
+  .screen.active { opacity: 1; visibility: visible; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .rise { animation: rise .7s cubic-bezier(.2, .7, .2, 1) both; }
+
+  /* ════════════ INICIO / PORTAL ════════════ */
+  #home { justify-content: space-between; }
+  .home-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .brand { font-family: var(--display); font-weight: 500; font-size: 21px; letter-spacing: -.01em; }
+  .brand span { color: var(--accent); }
+  .daygoal { text-align: right; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+  .daygoal b { color: var(--ink); font-weight: 600; }
+
+  .home-center { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .greeting { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 18px; }
+  .home-headline {
+    font-family: var(--display); font-weight: 400; font-size: clamp(34px, 9vw, 52px);
+    line-height: 1.04; letter-spacing: -.02em; max-width: 14ch;
+  }
+  .home-headline em { font-style: italic; color: var(--accent); }
+  .home-sub { font-family: var(--read); font-size: 18px; line-height: 1.5; color: var(--ink-soft); margin-top: 22px; max-width: 30ch; }
+
+  .ring-wrap { display: flex; align-items: center; gap: 14px; margin-top: 30px; }
+  .ring { width: 52px; height: 52px; flex: none; }
+  .ring circle { fill: none; stroke-width: 5; }
+  .ring .track { stroke: var(--line); }
+  .ring .fill { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .9s cubic-bezier(.3,.8,.3,1); transform: rotate(-90deg); transform-origin: 50% 50%; }
+  .ring-label { font-size: 13px; color: var(--ink-soft); line-height: 1.45; }
+  .ring-label b { font-family: var(--display); font-size: 17px; color: var(--ink); font-weight: 500; }
+
+  .home-bottom { display: flex; flex-direction: column; gap: 14px; }
+  .hint { font-size: 12.5px; color: var(--ink-faint); text-align: center; line-height: 1.5; }
+
+  /* ── botones ── */
+  .btn {
+    font-family: var(--ui); font-weight: 600; font-size: 16px; letter-spacing: .005em;
+    border: none; border-radius: 999px; padding: 18px 26px; cursor: pointer;
+    transition: transform .25s cubic-bezier(.2,.7,.2,1), box-shadow .25s ease, background .25s ease, border-color .25s ease;
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--ink); color: var(--paper); box-shadow: 0 14px 30px -14px rgba(0,0,0,.5); }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--ink-faint); }
+  .btn .arrow { transition: transform .3s ease; }
+  .btn-primary:hover .arrow { transform: translateX(4px); }
+
+  /* ════════════ CÁPSULA ════════════ */
+  #capsule { padding: 0; }
+  .cap-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: max(env(safe-area-inset-top), 22px) 26px 0; position: relative; z-index: 5;
+  }
+  .queue-tag { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+  [data-theme="systems"] .queue-tag { font-family: "Space Mono", monospace; font-size: 12px; letter-spacing: .02em; }
+  .queue-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px -1px var(--accent); }
+  .cap-close { background: none; border: none; cursor: pointer; color: var(--ink-faint); font-size: 13px; font-family: var(--ui); padding: 6px; }
+  .cap-close:hover { color: var(--ink); }
+
+  .slide-dots { display: flex; gap: 6px; padding: 16px 26px 0; }
+  .slide-dots .d { height: 3px; flex: 1; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .slide-dots .d i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 2px; transition: width .4s ease; }
+  .slide-dots .d.done i, .slide-dots .d.current i { width: 100%; }
+
+  .slides-vp { flex: 1; position: relative; overflow: hidden; z-index: 1; }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center; padding: 24px 30px;
+    opacity: 0; transform: translateY(40px); pointer-events: none;
+    transition: opacity .55s cubic-bezier(.2,.7,.2,1), transform .55s cubic-bezier(.2,.7,.2,1);
+  }
+  .slide.active { opacity: 1; transform: none; pointer-events: auto; }
+  .slide.exit-up { opacity: 0; transform: translateY(-40px); }
+
+  .slide-kind { font-family: var(--kicker); font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 22px; }
+  .slide-kind::before { content: var(--kicker-pre); opacity: .8; }
+  .slide.kind-hook .slide-kind { color: var(--accent); }
+  .slide.kind-twist .slide-kind { color: var(--accent-2); }
+
+  .slide-text { font-family: var(--display); font-weight: 400; letter-spacing: -.018em; line-height: 1.12; }
+  .slide.kind-hook .slide-text { font-size: clamp(30px, 8.2vw, 46px); }
+  .slide.kind-develop .slide-text { font-family: var(--read); font-weight: 400; font-size: clamp(21px, 5.6vw, 27px); line-height: 1.45; letter-spacing: 0; }
+  .slide.kind-twist .slide-text { font-size: clamp(26px, 7vw, 39px); font-style: italic; }
+  /* en el mundo "systems" la display es grotesca: sin cursiva, más peso y tighter */
+  [data-theme="systems"] .slide.kind-hook .slide-text { font-weight: 700; letter-spacing: -.03em; line-height: 1.06; }
+  [data-theme="systems"] .slide.kind-twist .slide-text { font-style: normal; font-weight: 700; letter-spacing: -.025em; color: var(--accent-2); }
+  [data-theme="systems"] .slide.kind-develop .slide-text { font-weight: 400; line-height: 1.5; }
+
+  .cap-foot { padding: 0 26px max(env(safe-area-inset-bottom), 24px); display: flex; align-items: center; justify-content: space-between; gap: 14px; position: relative; z-index: 2; }
+  .swipe-cue { display: flex; align-items: center; gap: 9px; color: var(--ink-faint); font-size: 12.5px; }
+  [data-theme="systems"] .swipe-cue { font-family: "Space Mono", monospace; font-size: 11.5px; }
+  .swipe-cue svg { animation: nudge 2.2s ease-in-out infinite; }
+  @keyframes nudge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+
+  .save-btn { background: none; border: 1.5px solid var(--line); border-radius: 999px; width: 46px; height: 46px; flex: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink-soft); transition: all .25s ease; }
+  .save-btn:hover { border-color: var(--ink-faint); }
+  .save-btn.saved { background: var(--accent); border-color: var(--accent); color: var(--paper); transform: scale(1.05); }
+  .save-btn svg { width: 19px; height: 19px; }
+
+  /* ════════════ REFLEXIÓN ════════════ */
+  #reflect { justify-content: center; }
+  .reflect-kicker { font-family: var(--kicker); font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 20px; }
+  .reflect-kicker::before { content: var(--kicker-pre); opacity: .8; }
+  .reflect-prompt { font-family: var(--display); font-weight: 400; font-size: clamp(25px, 6.6vw, 34px); line-height: 1.18; letter-spacing: -.015em; }
+  [data-theme="systems"] .reflect-prompt { font-weight: 600; letter-spacing: -.025em; }
+  .reflect-field {
+    margin-top: 24px; width: 100%; background: var(--surface); border: 1.5px solid var(--line);
+    border-radius: 18px; padding: 16px 18px; font-family: var(--read); font-size: 17px; color: var(--ink);
+    resize: none; min-height: 96px; line-height: 1.5; transition: border-color .25s ease;
+  }
+  .reflect-field:focus { outline: none; border-color: var(--accent); }
+  .reflect-field::placeholder { color: var(--ink-faint); }
+  .reflect-note { font-size: 12px; color: var(--ink-faint); margin-top: 10px; }
+  .reflect-actions { display: flex; gap: 12px; margin-top: 28px; }
+  .reflect-actions .btn { flex: 1; }
+
+  /* ════════════ LISTO POR HOY ════════════ */
+  #done { justify-content: center; align-items: flex-start; }
+  .done-mark { font-family: var(--display); font-size: 60px; color: var(--accent); line-height: 1; margin-bottom: 26px; }
+  .done-head { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 8vw, 44px); line-height: 1.08; letter-spacing: -.02em; max-width: 16ch; }
+  .done-sub { font-family: var(--read); font-size: 18px; color: var(--ink-soft); margin-top: 20px; line-height: 1.5; max-width: 32ch; }
+  .done-actions { margin-top: 34px; display: flex; flex-direction: column; gap: 12px; align-self: stretch; }
+
+  .data-link { position: absolute; bottom: max(env(safe-area-inset-bottom), 18px); left: 0; right: 0; text-align: center; font-size: 11px; color: var(--ink-faint); letter-spacing: .04em; background: none; border: none; cursor: pointer; font-family: var(--ui); }
+  .data-link:hover { color: var(--ink-soft); }
+
+  /* ════════════ DATOS ════════════ */
+  #data { overflow-y: auto; }
+  .data-head { font-family: var(--display); font-size: 28px; font-weight: 500; letter-spacing: -.015em; margin-bottom: 4px; }
+  .data-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 26px; line-height: 1.5; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 26px; }
+  .stat { background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+  .stat .n { font-family: var(--display); font-size: 30px; font-weight: 500; line-height: 1; }
+  .stat .l { font-size: 12px; color: var(--ink-soft); margin-top: 7px; }
+  .day-row { display: flex; gap: 6px; margin: 6px 0 26px; }
+  .day-cell { flex: 1; aspect-ratio: 1; border-radius: 8px; background: var(--surface); border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--ink-faint); }
+  .day-cell.hit { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 600; }
+  .data-section-title { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 12px; }
+  .note-item { font-family: var(--read); font-size: 16px; line-height: 1.5; padding: 14px 0; border-top: 1px solid var(--line); color: var(--ink-soft); }
+  .note-item .q { display: block; font-family: var(--ui); font-size: 12px; color: var(--ink-faint); margin-bottom: 6px; }
+  .note-item b { color: var(--ink); font-weight: 400; font-style: italic; }
+  .data-back { margin: 28px 0 12px; }
+  .reset { display: block; margin: 0 auto 8px; background: none; border: none; color: var(--ink-faint); font-size: 12px; cursor: pointer; font-family: var(--ui); text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, .slide { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    .swipe-cue svg { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══════ INICIO ═══════ -->
+  <section id="home" class="screen active">
+    <div class="home-top rise">
+      <div class="brand">Cortex<span>.</span></div>
+      <div class="daygoal" id="daygoal"></div>
+    </div>
+
+    <div class="home-center">
+      <div class="greeting rise" id="greeting" style="animation-delay:.05s">Un hueco de dos minutos</div>
+      <h1 class="home-headline rise" style="animation-delay:.12s">No hagas <em>scroll</em>.<br>Aprende algo.</h1>
+      <p class="home-sub rise" style="animation-delay:.2s">Una cápsula. No sabes de qué materia vendrá. Cuando termines, decides tú si quieres otra.</p>
+
+      <div class="ring-wrap rise" style="animation-delay:.28s">
+        <svg class="ring" viewBox="0 0 52 52">
+          <circle class="track" cx="26" cy="26" r="22"></circle>
+          <circle class="fill" id="ring" cx="26" cy="26" r="22"></circle>
+        </svg>
+        <div class="ring-label" id="ringlabel"></div>
+      </div>
+    </div>
+
+    <div class="home-bottom rise" style="animation-delay:.36s">
+      <button class="btn btn-primary" id="openBtn">
+        Abrir una cápsula
+        <svg class="arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <p class="hint">Sin reproducción automática. Sin scroll infinito. Tú decides cuándo parar.</p>
+    </div>
+
+    <button class="data-link" id="toData">ver mi experimento de 7 días →</button>
+  </section>
+
+  <!-- ═══════ CÁPSULA ═══════ -->
+  <section id="capsule" class="screen">
+    <div class="cap-head">
+      <div class="queue-tag"><span class="queue-dot"></span><span id="qname"></span></div>
+      <button class="cap-close" id="capClose">cerrar</button>
+    </div>
+    <div class="slide-dots" id="slideDots"></div>
+    <div class="slides-vp" id="slidesVp"></div>
+    <div class="cap-foot">
+      <div class="swipe-cue" id="swipeCue">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+        <span>desliza para seguir</span>
+      </div>
+      <button class="save-btn" id="saveBtn" title="Guardar esta idea">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ═══════ REFLEXIÓN ═══════ -->
+  <section id="reflect" class="screen">
+    <div class="reflect-kicker rise">Antes de seguir</div>
+    <h2 class="reflect-prompt rise" id="reflectPrompt" style="animation-delay:.06s"></h2>
+    <textarea class="reflect-field rise" id="reflectField" style="animation-delay:.14s" placeholder="Escribe lo que se te ocurra. Tan rápido como un WhatsApp. (Opcional)"></textarea>
+    <p class="reflect-note rise" style="animation-delay:.18s">Lo que escribes se guarda solo en este dispositivo.</p>
+    <div class="reflect-actions rise" style="animation-delay:.24s">
+      <button class="btn btn-ghost" id="doneBtn">Listo por hoy</button>
+      <button class="btn btn-primary" id="anotherBtn">Otra <svg class="arrow" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </div>
+  </section>
+
+  <!-- ═══════ LISTO ═══════ -->
+  <section id="done" class="screen">
+    <div class="done-mark rise">✦</div>
+    <h2 class="done-head rise" id="doneHead" style="animation-delay:.06s"></h2>
+    <p class="done-sub rise" id="doneSub" style="animation-delay:.14s"></p>
+    <div class="done-actions rise" style="animation-delay:.22s">
+      <button class="btn btn-ghost" id="backHome">Volver al inicio</button>
+    </div>
+  </section>
+
+  <!-- ═══════ DATOS ═══════ -->
+  <section id="data" class="screen">
+    <h2 class="data-head">Tu experimento</h2>
+    <p class="data-sub">El criterio de éxito (§15): a los 14 días, ¿abres Cortex en vez de TikTok más de la mitad de las veces? Estos son tus datos en crudo.</p>
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="data-section-title">Días que cumpliste la meta</div>
+    <div class="day-row" id="dayRow"></div>
+    <div class="data-section-title">Tus reflexiones guardadas</div>
+    <div id="notesList"></div>
+    <div class="data-back">
+      <button class="btn btn-ghost" id="dataBack" style="width:100%">Volver</button>
+    </div>
+    <button class="reset" id="resetBtn">reiniciar todos los datos</button>
+  </section>
+
+</div>
+
+<script src="capsules.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   Cortex — Fase 0  ·  motor de servido + renderer genérico + temas
+   El renderer despacha por capsule.format (§8) y aplica el mundo
+   visual de capsule.queue.theme. Añadir formato o materia = data.
+   ══════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+
+  const DAILY_GOAL = 5;
+  const STORE_KEY = "cortex_phase0_v1";
+
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+  function load() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; } }
+  function save(s) { localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
+
+  let state = load();
+  state.firstDay = state.firstDay || todayStr();
+  state.byDay = state.byDay || {};
+  state.seen = state.seen || {};
+  state.saved = state.saved || [];
+  state.notes = state.notes || [];
+  state.events = state.events || [];
+  if (!state.byDay[todayStr()]) state.byDay[todayStr()] = 0;
+  save(state);
+
+  function logEvent(action, capsuleId) {
+    state.events.push({ action, capsuleId: capsuleId || null, ts: Date.now() });
+    if (state.events.length > 2000) state.events = state.events.slice(-2000);
+    save(state);
+  }
+
+  // ── motor de servido (§7, versión Fase 0) ─────────────────────
+  let lastQueue = null;
+  let sessionSeen = new Set();
+  function pickCapsule() {
+    const all = window.CORTEX_CAPSULES;
+    let pool = all.filter(c => !state.seen[c.id] && !sessionSeen.has(c.id));
+    if (pool.length === 0) { sessionSeen.clear(); pool = all.filter(c => !sessionSeen.has(c.id)); }
+    const diff = pool.filter(c => c.queue.title !== lastQueue);
+    if (diff.length) pool = diff;
+    const weights = pool.map(c => Math.pow(c.novelty_score || .5, 2) + .15);
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total, chosen = pool[0];
+    for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) { chosen = pool[i]; break; } }
+    lastQueue = chosen.queue.title;
+    sessionSeen.add(chosen.id);
+    return chosen;
+  }
+
+  // ── navegación de pantallas + tema por materia ────────────────
+  const screens = {};
+  document.querySelectorAll(".screen").forEach(s => screens[s.id] = s);
+  const NEUTRAL = ["home", "done", "data"];
+  function show(id) {
+    Object.values(screens).forEach(s => s.classList.remove("active"));
+    screens[id].classList.add("active");
+    if (NEUTRAL.includes(id)) document.body.removeAttribute("data-theme"); // volver al mundo neutro
+    screens[id].querySelectorAll(".rise").forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
+  }
+
+  // ── INICIO ────────────────────────────────────────────────────
+  function renderHome() {
+    const done = state.byDay[todayStr()] || 0;
+    const pct = Math.min(done / DAILY_GOAL, 1);
+    const C = 2 * Math.PI * 22;
+    const ring = document.getElementById("ring");
+    ring.style.strokeDasharray = C;
+    ring.style.strokeDashoffset = C * (1 - pct);
+    document.getElementById("ringlabel").innerHTML = `<b>${done} / ${DAILY_GOAL}</b><br>cápsulas hoy`;
+    document.getElementById("daygoal").innerHTML = `día <b>${daysSinceStart() + 1}</b> de tu<br>experimento`;
+    const hr = new Date().getHours();
+    const greet = hr < 6 ? "De madrugada" : hr < 13 ? "Buenos días" : hr < 21 ? "Buenas tardes" : "Esta noche";
+    document.getElementById("greeting").textContent = done >= DAILY_GOAL ? "Ya has cumplido hoy" : `${greet} · un hueco de dos minutos`;
+  }
+  function daysSinceStart() {
+    return Math.round((new Date(todayStr()) - new Date(state.firstDay)) / 86400000);
+  }
+
+  // ── RENDERER GENÉRICO (despacha por format + aplica tema) ─────
+  let current = null, slideIdx = 0;
+  function renderCapsule(cap) {
+    current = cap; slideIdx = 0;
+    logEvent("served", cap.id);
+
+    document.body.setAttribute("data-theme", cap.queue.theme || "");  // entrar al mundo de la materia
+    document.getElementById("qname").textContent = cap.queue.title;
+    document.getElementById("saveBtn").classList.toggle("saved", state.saved.includes(cap.id));
+
+    const vp = document.getElementById("slidesVp");
+    vp.innerHTML = "";
+    switch (cap.format) {
+      case "narrative": renderNarrative(cap, vp); break;
+      default: vp.innerHTML = `<div class="slide active kind-develop"><p class="slide-text">Formato “${cap.format}” aún no implementado en Fase 0.</p></div>`;
+    }
+    show("capsule");
+  }
+
+  function renderNarrative(cap, vp) {
+    const slides = cap.payload.slides;
+    document.getElementById("slideDots").innerHTML =
+      slides.map((_, i) => `<span class="d${i === 0 ? " current" : ""}"><i></i></span>`).join("");
+    slides.forEach((sl, i) => {
+      const el = document.createElement("div");
+      el.className = `slide kind-${sl.type}${i === 0 ? " active" : ""}`;
+      const kindLabel = { hook: "El gancho", develop: "", twist: "El giro" }[sl.type] ?? "";
+      el.innerHTML =
+        (kindLabel ? `<div class="slide-kind">${kindLabel}</div>` : `<div class="slide-kind">&nbsp;</div>`) +
+        `<p class="slide-text">${sl.text}</p>`;
+      vp.appendChild(el);
+    });
+    updateSwipeCue();
+  }
+
+  function updateSwipeCue() {
+    const total = current.payload.slides.length;
+    document.querySelector("#swipeCue span").textContent =
+      slideIdx >= total - 1 ? "desliza para reflexionar" : "desliza para seguir";
+  }
+
+  function goSlide(dir) {
+    const total = current.payload.slides.length;
+    const next = slideIdx + dir;
+    if (next < 0) return;
+    if (next >= total) { endCapsule(); return; }
+    const slides = document.querySelectorAll("#slidesVp .slide");
+    const cur = slides[slideIdx], nxt = slides[next];
+    if (dir > 0) cur.classList.add("exit-up");
+    cur.classList.remove("active");
+    nxt.classList.remove("exit-up");
+    nxt.classList.add("active");
+    document.querySelectorAll("#slideDots .d").forEach((d, i) => {
+      d.classList.toggle("done", i < next);
+      d.classList.toggle("current", i === next);
+    });
+    slideIdx = next;
+    updateSwipeCue();
+  }
+
+  function endCapsule() {
+    logEvent("completed", current.id);
+    state.byDay[todayStr()] = (state.byDay[todayStr()] || 0) + 1;
+    if (!state.seen[current.id]) state.seen[current.id] = true;
+    save(state);
+    document.getElementById("reflectPrompt").textContent = current.reflection_prompt;
+    document.getElementById("reflectField").value = "";
+    show("reflect");
+  }
+
+  // ── gestos / input ────────────────────────────────────────────
+  const vp = document.getElementById("slidesVp");
+  let touchY = null, touchX = null, touchT = 0;
+  vp.addEventListener("touchstart", e => { touchY = e.touches[0].clientY; touchX = e.touches[0].clientX; touchT = Date.now(); }, { passive: true });
+  vp.addEventListener("touchend", e => {
+    if (touchY === null) return;
+    const dy = e.changedTouches[0].clientY - touchY;
+    const dx = e.changedTouches[0].clientX - touchX;
+    const dt = Date.now() - touchT;
+    if (Math.abs(dy) > 45 && Math.abs(dy) > Math.abs(dx) && dt < 900) goSlide(dy < 0 ? 1 : -1);
+    else if (Math.abs(dy) < 12 && Math.abs(dx) < 12 && dt < 300) goSlide(1);
+    touchY = null;
+  }, { passive: true });
+  vp.addEventListener("click", e => {
+    if (e.target.closest(".save-btn")) return;
+    const r = vp.getBoundingClientRect();
+    goSlide((e.clientY - r.top) > r.height * 0.42 ? 1 : -1);
+  });
+  let wheelLock = false;
+  vp.addEventListener("wheel", e => {
+    if (wheelLock || Math.abs(e.deltaY) < 18) return;
+    wheelLock = true; goSlide(e.deltaY > 0 ? 1 : -1);
+    setTimeout(() => wheelLock = false, 650);
+  }, { passive: true });
+  window.addEventListener("keydown", e => {
+    if (!screens.capsule.classList.contains("active")) return;
+    if (["ArrowDown", "ArrowRight", " ", "Enter"].includes(e.key)) { e.preventDefault(); goSlide(1); }
+    if (["ArrowUp", "ArrowLeft"].includes(e.key)) { e.preventDefault(); goSlide(-1); }
+  });
+
+  // ── guardar ────────────────────────────────────────────────────
+  const saveBtn = document.getElementById("saveBtn");
+  saveBtn.addEventListener("click", () => {
+    if (!current) return;
+    const i = state.saved.indexOf(current.id);
+    if (i >= 0) { state.saved.splice(i, 1); saveBtn.classList.remove("saved"); }
+    else {
+      state.saved.push(current.id); saveBtn.classList.add("saved");
+      logEvent("saved", current.id);
+      if (navigator.vibrate) navigator.vibrate(18);
+    }
+    save(state);
+  });
+
+  // ── botones ────────────────────────────────────────────────────
+  document.getElementById("openBtn").addEventListener("click", () => renderCapsule(pickCapsule()));
+  document.getElementById("capClose").addEventListener("click", () => { logEvent("skipped", current && current.id); show("home"); renderHome(); });
+  document.getElementById("anotherBtn").addEventListener("click", () => { saveReflection(); renderCapsule(pickCapsule()); });
+  document.getElementById("doneBtn").addEventListener("click", () => { saveReflection(); renderDone(); });
+  document.getElementById("backHome").addEventListener("click", () => { show("home"); renderHome(); });
+
+  function saveReflection() {
+    const txt = document.getElementById("reflectField").value.trim();
+    if (txt && current) {
+      state.notes.push({ capsuleId: current.id, prompt: current.reflection_prompt, text: txt, day: todayStr() });
+      logEvent("reflected", current.id);
+      save(state);
+    }
+  }
+
+  // ── LISTO ──────────────────────────────────────────────────────
+  function renderDone() {
+    const done = state.byDay[todayStr()] || 0;
+    const head = done >= DAILY_GOAL ? "Has cerrado el día completo." : "Listo por hoy.";
+    const sub = done >= DAILY_GOAL
+      ? `${done} cápsulas. Eres alguien que en los ratos muertos aprende. Vuelve cuando quieras, sin prisa.`
+      : `${done} ${done === 1 ? "cápsula" : "cápsulas"} hoy. No hay racha que mantener ni culpa que cargar. Vuelve en el próximo hueco.`;
+    document.getElementById("doneHead").textContent = head;
+    document.getElementById("doneSub").textContent = sub;
+    show("done");
+  }
+
+  // ── DATOS ──────────────────────────────────────────────────────
+  document.getElementById("toData").addEventListener("click", renderData);
+  document.getElementById("dataBack").addEventListener("click", () => { show("home"); renderHome(); });
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (confirm("¿Borrar todos los datos del experimento? No se puede deshacer.")) { localStorage.removeItem(STORE_KEY); location.reload(); }
+  });
+
+  function renderData() {
+    const ev = state.events;
+    const totalCompleted = ev.filter(e => e.action === "completed").length;
+    const totalSkipped = ev.filter(e => e.action === "skipped").length;
+    const totalSaved = state.saved.length;
+    const daysActive = Object.values(state.byDay).filter(v => v > 0).length;
+    document.getElementById("statGrid").innerHTML = `
+      <div class="stat"><div class="n">${totalCompleted}</div><div class="l">cápsulas completadas</div></div>
+      <div class="stat"><div class="n">${daysActive}</div><div class="l">días que la abriste</div></div>
+      <div class="stat"><div class="n">${totalSaved}</div><div class="l">ideas guardadas</div></div>
+      <div class="stat"><div class="n">${totalSkipped}</div><div class="l">cerradas sin terminar</div></div>`;
+    const row = document.getElementById("dayRow"); row.innerHTML = "";
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const hit = (state.byDay[key] || 0) >= DAILY_GOAL;
+      const some = (state.byDay[key] || 0) > 0;
+      const cell = document.createElement("div");
+      cell.className = "day-cell" + (hit ? " hit" : "");
+      cell.style.opacity = some && !hit ? ".6" : "1";
+      cell.textContent = ["D", "L", "M", "X", "J", "V", "S"][d.getDay()];
+      cell.title = `${key}: ${state.byDay[key] || 0} cápsulas`;
+      row.appendChild(cell);
+    }
+    const nl = document.getElementById("notesList");
+    nl.innerHTML = state.notes.length === 0
+      ? `<div class="note-item">Todavía no has escrito ninguna reflexión. Aparecen aquí cuando respondes el micro-reto del final.</div>`
+      : state.notes.slice().reverse().map(n => `<div class="note-item"><span class="q">${n.prompt}</span><b>${escapeHtml(n.text)}</b></div>`).join("");
+    show("data");
+  }
+
+  function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+  renderHome();
+})();
+</script>
+</body>
+</html>
