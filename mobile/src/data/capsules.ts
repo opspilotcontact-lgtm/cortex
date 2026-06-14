@@ -3,8 +3,16 @@
 // — la app no cambia, solo la fuente. Español de España.
 
 import { Capsule } from "../types";
+import { PACK as behavioral } from "../content/behavioral";
+import { PACK as meditaciones } from "../content/meditaciones";
+import { PACK as piense } from "../content/piense";
+import { PACK as influencia } from "../content/influencia";
+import { PACK as voss } from "../content/voss";
+import { PACK as manson } from "../content/manson";
+import { PACK as robbins } from "../content/robbins";
+import { PACK as titans } from "../content/titans";
 
-export const SEED_CAPSULES: Capsule[] = [
+const ORIGINAL_SEED: Capsule[] = [
   // ── Hábitos Atómicos (mundo "habits") ──────────────────────────
   {
     id: "ah-01",
@@ -326,4 +334,12 @@ export const SEED_CAPSULES: Capsule[] = [
     },
     reflection_prompt: "¿Dónde de tu vida confundes 'va lento' con 'está roto'?",
   },
+];
+
+// El seed embebido = originales + TODOS los packs de libros. Así la app funciona
+// COMPLETA sin backend (offline real / demo pública en Render). Si Supabase
+// responde (dev local), manda él; si no, esto da las 11 materias igualmente.
+export const SEED_CAPSULES: Capsule[] = [
+  ...ORIGINAL_SEED,
+  ...behavioral, ...meditaciones, ...piense, ...influencia, ...voss, ...manson, ...robbins, ...titans,
 ];

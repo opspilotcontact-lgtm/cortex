@@ -1,0 +1,28 @@
+# Render Blueprint — Cortex como sitio estático (export web de Expo).
+#
+# Desplegar: en https://dashboard.render.com → New → Blueprint → conecta este
+# repo de GitHub. Render detecta este archivo, construye y te da una URL pública
+# gratuita (https://cortex-xxxx.onrender.com).
+#
+# Contenido: la app trae TODO embebido (11 materias, 83 cápsulas, 11 mundos), así
+# que el enlace funciona COMPLETO sin backend (Flow, formatos, repaso espaciado).
+# Las funciones que ESCRIBEN (guardar ★, grafo, "Tu mente", chat IA) necesitan un
+# Supabase PÚBLICO: define entonces EXPO_PUBLIC_SUPABASE_URL y
+# EXPO_PUBLIC_SUPABASE_ANON_KEY en el entorno del servicio en Render.
+
+services:
+  - type: web
+    name: cortex
+    runtime: static
+    buildCommand: cd mobile && npm install && npm run build:web
+    staticPublishPath: mobile/dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: EXPO_PUBLIC_SUPABASE_URL
+        sync: false   # opcional: tu Supabase público cuando lo tengas
+      - key: EXPO_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
