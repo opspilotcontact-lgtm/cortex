@@ -22,6 +22,8 @@ services:
         source: /*
         destination: /index.html
     envVars:
+      - key: NODE_VERSION
+        value: "20"   # Expo SDK 56 necesita Node 18+
       - key: EXPO_PUBLIC_SUPABASE_URL
         sync: false   # opcional: tu Supabase público cuando lo tengas
       - key: EXPO_PUBLIC_SUPABASE_ANON_KEY
