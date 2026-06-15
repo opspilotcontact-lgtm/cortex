@@ -2,13 +2,14 @@
 // mundo visual de la materia, y usa Reanimated (animación en hilo de UI) +
 // Gesture Handler (swipe vertical, con tap de respaldo). §4 + §11.
 
-import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming, withDelay, runOnJS, Easing } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
-import { BridgePayload, Capsule, InteractivePayload, NarrativePayload, RecallPayload, ReviewGrade, StatPayload, VisualPayload } from "../types";
+import { BridgePayload, Capsule, InteractivePayload, MotionPayload, NarrativePayload, RecallPayload, ReviewGrade, StatPayload, VisualPayload } from "../types";
 import { Theme } from "../theme";
+import { buildScene } from "./scenes";
 
 interface Props {
   capsule: Capsule;
@@ -45,6 +46,7 @@ export default function CapsuleView({ capsule, theme, isSaved, onToggleSave, onC
       {capsule.format === "visual" && <VisualBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
       {capsule.format === "recall" && <RecallBody key={capsule.id} payload={capsule.payload} theme={theme} onReview={onReview} />}
       {capsule.format === "stat" && <StatBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
+      {capsule.format === "motion" && <MotionBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
     </View>
   );
 }
@@ -385,6 +387,38 @@ function StatBody({ payload, theme, onComplete }: { payload: StatPayload; theme:
   );
 }
 
+// ── MOTION — escena animada HTML+GSAP (§8) ───────────────────────
+// En web la incrustamos como <iframe srcDoc>; en nativo, react-native-webview.
+function HtmlScene({ html }: { html: string }) {
+  if (Platform.OS === "web") {
+    return React.createElement("iframe", {
+      srcDoc: html,
+      sandbox: "allow-scripts",
+      style: { width: "100%", height: "100%", border: "0", display: "block", background: "transparent" },
+    });
+  }
+  const WebView = require("react-native-webview").WebView;
+  return <WebView source={{ html }} style={{ flex: 1, backgroundColor: "transparent" }} originWhitelist={["*"]} scrollEnabled={false} />;
+}
+
+function MotionBody({ payload, theme, onComplete }: { payload: MotionPayload; theme: Theme; onComplete: () => void }) {
+  const html = useMemo(() => buildScene(payload.render, theme, payload.title, payload.caption), [payload.render, payload.title, payload.caption, theme]);
+  const reveal = useReveal(0);
+  return (
+    <>
+      <Reanimated.View style={[styles.body, reveal, { overflow: "hidden" }]}>
+        {/* la escena (iframe/WebView) captura el toque, así que avanzamos con el botón */}
+        <HtmlScene html={html} />
+      </Reanimated.View>
+      <View style={styles.motionCta}>
+        <Pressable onPress={onComplete} style={({ pressed }) => [styles.primary, { backgroundColor: theme.ink }, pressed && { opacity: 0.85 }]}>
+          <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.paper }}>Seguir  →</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
 // ── piezas compartidas ────────────────────────────────────────────
 const Kicker = ({ theme, color, children }: { theme: Theme; color: string; children: React.ReactNode }) => (
   <Text style={{ fontFamily: theme.kicker, fontSize: 11.5, letterSpacing: 2, textTransform: "uppercase", color, marginBottom: 20 }}>
@@ -411,6 +445,7 @@ const styles = StyleSheet.create({
   cue: { paddingHorizontal: 30, paddingBottom: 28 },
   choice: { borderWidth: 1.5, borderRadius: 16, padding: 18, marginBottom: 12 },
   primary: { borderRadius: 999, paddingVertical: 18, paddingHorizontal: 26, alignItems: "center" },
+  motionCta: { paddingHorizontal: 30, paddingBottom: 28, paddingTop: 8 },
   gradeRow: { flexDirection: "row", gap: 8, paddingHorizontal: 26, paddingBottom: 28 },
   grade: { flex: 1, borderWidth: 1.5, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" },
 });

@@ -17,7 +17,7 @@ export interface Slide {
   text: string;
 }
 
-export type CapsuleFormat = "narrative" | "interactive" | "visual" | "bridge" | "recall" | "stat";
+export type CapsuleFormat = "narrative" | "interactive" | "visual" | "bridge" | "recall" | "stat" | "motion";
 
 // ── payloads por formato (§8) ────────────────────────────────────
 export interface NarrativePayload {
@@ -49,6 +49,11 @@ export interface StatPayload {
   unit?: string; // matiz bajo la cifra, p.ej. "mejor en un año"
   claim: string; // la afirmación que contextualiza la cifra
   reveal: string; // el giro contraintuitivo que se revela al tocar
+}
+export interface MotionPayload {
+  render: string; // escena animada: "habit_loop" | "compound" | "anchor" | …
+  title: string; // titular de la escena
+  caption: string; // una línea bajo la animación
 }
 
 // ── Cápsula como UNIÓN DISCRIMINADA por `format` ──────────────────
@@ -86,7 +91,11 @@ export interface StatCapsule extends BaseCapsule {
   format: "stat";
   payload: StatPayload;
 }
-export type Capsule = NarrativeCapsule | InteractiveCapsule | BridgeCapsule | VisualCapsule | RecallCapsule | StatCapsule;
+export interface MotionCapsule extends BaseCapsule {
+  format: "motion";
+  payload: MotionPayload;
+}
+export type Capsule = NarrativeCapsule | InteractiveCapsule | BridgeCapsule | VisualCapsule | RecallCapsule | StatCapsule | MotionCapsule;
 
 // ── Telemetría (§7) ───────────────────────────────────────────────
 export type InteractionAction = "served" | "completed" | "skipped" | "saved" | "reflected";

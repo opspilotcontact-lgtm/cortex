@@ -37,6 +37,8 @@ function recallCore(c: Capsule): { prompt: string; reveal: string } {
       return { prompt: c.payload.question, reveal: c.payload.rationale };
     case "visual":
       return { prompt: "Repaso de un mapa que viste. Antes de revelarlo: ¿recuerdas la idea?", reveal: c.payload.caption };
+    case "motion":
+      return { prompt: `Repaso: «${c.payload.title}». Antes de revelarlo: ¿recuerdas la idea?`, reveal: c.payload.caption };
     case "recall":
       return { prompt: c.payload.prompt, reveal: c.payload.reveal };
   }

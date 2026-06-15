@@ -334,6 +334,34 @@ const ORIGINAL_SEED: Capsule[] = [
     },
     reflection_prompt: "¿Dónde de tu vida confundes 'va lento' con 'está roto'?",
   },
+
+  // ── MOTION — escenas animadas HTML+GSAP (§8) ──
+  {
+    id: "mot-01",
+    queue: { title: "Hábitos Atómicos", type: "book", theme: "habits" },
+    format: "motion",
+    novelty_score: 0.85,
+    estimated_seconds: 40,
+    payload: {
+      render: "habit_loop",
+      title: "El bucle del hábito",
+      caption: "Señal → anhelo → respuesta → recompensa. Y vuelta a empezar: por eso se refuerza solo, sin que decidas.",
+    },
+    reflection_prompt: "¿Cuál es la señal que dispara tu hábito sin que te des cuenta?",
+  },
+  {
+    id: "mot-02",
+    queue: { title: "Hábitos Atómicos", type: "book", theme: "habits" },
+    format: "motion",
+    novelty_score: 0.8,
+    estimated_seconds: 40,
+    payload: {
+      render: "compound",
+      title: "1% mejor cada día",
+      caption: "Las ganancias diarias parecen ridículas. Lo que se acumula, no: mejorar un 1% al día es ser 37× mejor en un año.",
+    },
+    reflection_prompt: "¿Cuál es tu 1% diario, ese que pospones porque 'es muy poco para que importe'?",
+  },
 ];
 
 // El seed embebido = originales + TODOS los packs de libros. Así la app funciona
