@@ -62,4 +62,10 @@ export const PACK: Capsule[] = [
     payload: { prompt: "Hace poco viste por qué actúas o no actúas. Antes de revelarlo: ¿qué pasa en los 5 segundos tras un impulso?", reveal: "Si no te mueves, el cerebro lo mata con excusas y la duda gana. 5-4-3-2-1 interrumpe ese bucle y despierta el córtex prefrontal." },
     reflection_prompt: "¿Usaste la cuenta atrás hoy, o dejaste que el cerebro votara que no?",
   },
+  {
+    id: "rob-07", queue: { title: "El poder de los 5 segundos", type: "book", theme: "ignite" }, format: "motion",
+    novelty_score: 0.85, estimated_seconds: 35,
+    payload: { render: "countdown", title: "5 · 4 · 3 · 2 · 1 · ¡YA!", caption: "Cuenta atrás como un cohete: te mueves antes de que el cerebro te frene. Eso es la valentía." },
+    reflection_prompt: "Eso que estás posponiendo: cuenta 5-4-3-2-1 y da el primer paso ahora.",
+  },
 ];

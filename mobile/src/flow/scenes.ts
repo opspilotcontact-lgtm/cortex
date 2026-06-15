@@ -4,8 +4,7 @@
 // la materia para que cada animación herede su identidad visual.
 
 import { Theme } from "../theme";
-
-const GSAP_CDN = "https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js";
+import { GSAP_SRC } from "./gsap-src";
 
 function shell(theme: Theme, title: string, caption: string, stage: string, script: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -25,7 +24,7 @@ function shell(theme: Theme, title: string, caption: string, stage: string, scri
   <div id="stage">${stage}</div>
   <div class="cap">${caption}</div>
 </div>
-<script src="${GSAP_CDN}"></script>
+<script>${GSAP_SRC}</script>
 <script>try{${script}}catch(e){}</script>
 </body></html>`;
 }
@@ -78,10 +77,55 @@ function compound(theme: Theme, title: string, caption: string): string {
   return shell(theme, title, caption, stage, script);
 }
 
+// Cuenta atrás 5-4-3-2-1 → ¡YA! con estallido (la técnica de Mel Robbins).
+function countdown(theme: Theme, title: string, caption: string): string {
+  const stage = `<svg width="300" height="260" viewBox="0 0 300 260">
+    <circle id="burst" cx="150" cy="120" r="8" fill="none" stroke="${theme.accent2}" stroke-width="4" opacity="0"/>
+    <text id="num" x="150" y="120" text-anchor="middle" dominant-baseline="central"
+      font-family="-apple-system,system-ui,sans-serif" font-weight="800" font-size="120" fill="${theme.accent}">5</text>
+  </svg>`;
+  const script = `
+    function setNum(x){document.getElementById("num").textContent=x;}
+    var nums=["5","4","3","2","1"];
+    var tl=gsap.timeline({repeat:-1, repeatDelay:0.5});
+    nums.forEach(function(d){
+      tl.call(setNum,[d]);
+      tl.fromTo("#num",{attr:{"font-size":48},opacity:0.15},{attr:{"font-size":134},opacity:1,duration:0.24,ease:"back.out(2)"});
+      tl.to("#num",{opacity:1,duration:0.3});
+    });
+    tl.call(setNum,["¡YA!"]);
+    tl.fromTo("#num",{attr:{"font-size":40},opacity:0},{attr:{"font-size":62},opacity:1,duration:0.25,ease:"back.out(2)"});
+    tl.fromTo("#burst",{attr:{r:10},opacity:0.8},{attr:{r:150},opacity:0,duration:0.7,ease:"power2.out"},"<");`;
+  return shell(theme, title, caption, stage, script);
+}
+
+// Anclaje: una cifra ancla fija y tu "estimación" arrastrada hacia ella (Cialdini).
+function anchor(theme: Theme, title: string, caption: string): string {
+  const stage = `<svg width="300" height="200" viewBox="0 0 300 200">
+    <line x1="30" y1="130" x2="270" y2="130" stroke="${theme.line}" stroke-width="3"/>
+    <g>
+      <line x1="186" y1="112" x2="186" y2="148" stroke="${theme.accent2}" stroke-width="3"/>
+      <text x="186" y="100" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-weight="700" font-size="15" fill="${theme.accent2}">Ancla 65</text>
+    </g>
+    <circle id="estM" cx="78" cy="130" r="10" fill="${theme.accent}"/>
+    <text id="estT" x="78" y="172" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-weight="800" font-size="22" fill="${theme.accent}">20</text>
+  </svg>`;
+  const script = `
+    function ex(v){return 30+v*2.4;}
+    var est={v:20};
+    function draw(){var x=ex(est.v);document.getElementById("estM").setAttribute("cx",x);var t=document.getElementById("estT");t.setAttribute("x",x);t.textContent=Math.round(est.v);}
+    var tl=gsap.timeline({repeat:-1, repeatDelay:1.0});
+    tl.set(est,{v:20}); tl.call(draw);
+    tl.to(est,{v:58,duration:1.5,ease:"power2.out",onUpdate:draw});`;
+  return shell(theme, title, caption, stage, script);
+}
+
 export function buildScene(render: string, theme: Theme, title: string, caption: string): string {
   switch (render) {
     case "habit_loop": return habitLoop(theme, title, caption);
     case "compound": return compound(theme, title, caption);
+    case "countdown": return countdown(theme, title, caption);
+    case "anchor": return anchor(theme, title, caption);
     default: return habitLoop(theme, title, caption);
   }
 }

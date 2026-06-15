@@ -133,4 +133,10 @@ export const PACK: Capsule[] = [
     },
     reflection_prompt: "¿Dónde usas tú «caro = bueno» sin darte cuenta?",
   },
+  {
+    id: "inf-09", queue: { title: "Influencia", type: "book", theme: "influence" }, format: "motion",
+    novelty_score: 0.85, estimated_seconds: 35,
+    payload: { render: "anchor", title: "El primer número manda", caption: "El ancla (65) arrastra tu estimación hacia ella, aunque no tenga nada que ver. Por eso quien dice el primer precio, gana." },
+    reflection_prompt: "¿Qué «primer número» aceptaste hace poco sin cuestionarlo?",
+  },
 ];
