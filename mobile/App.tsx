@@ -21,7 +21,7 @@ import { schedule, firstSchedule } from "./src/flow/sm2";
 import { Theme, themeFor, THEMES } from "./src/theme";
 import { loadFeed, FeedSource } from "./src/data/source";
 import { syncInteraction, syncSaved, syncNote } from "./src/lib/sync";
-import { pickCapsule } from "./src/flow/serving";
+import { pickCapsule, freshLeft } from "./src/flow/serving";
 import { loadState, saveState, resetState, emptyState, todayStr, daysSinceStart } from "./src/lib/storage";
 import CapsuleView from "./src/flow/CapsuleView";
 import GraphView from "./src/flow/GraphView";
@@ -134,11 +134,12 @@ export default function App() {
 
   const capsuleTheme = current ? themeFor(current.queue.theme) : THEMES.neutral;
   const done = state.byDay[todayStr()] ?? 0;
+  const fresh = freshLeft(feed, state, sessionSeen.current); // cuántas NUEVAS quedan (§2/§3)
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: (view === "capsule" || view === "reflect" ? capsuleTheme : THEMES.neutral).paper }}>
       <StatusBar barStyle={(view === "capsule" || view === "reflect") && capsuleTheme.isDark ? "light-content" : "dark-content"} />
-      {view === "home" && <Home theme={THEMES.neutral} done={done} day={daysSinceStart(state) + 1} onOpen={open} onData={() => setView("data")} onGraph={() => setView("graph")} onDepth={() => setView("depth")} />}
+      {view === "home" && <Home theme={THEMES.neutral} done={done} day={daysSinceStart(state) + 1} fresh={fresh} onOpen={open} onData={() => setView("data")} onGraph={() => setView("graph")} onDepth={() => setView("depth")} />}
       {view === "capsule" && current && (
         <Safe>
           <CapsuleView
@@ -191,7 +192,7 @@ function Btn({ label, onPress, theme, variant }: { label: string; onPress: () =>
   );
 }
 
-function Home({ theme, done, day, onOpen, onData, onGraph, onDepth }: { theme: Theme; done: number; day: number; onOpen: () => void; onData: () => void; onGraph: () => void; onDepth: () => void }) {
+function Home({ theme, done, day, fresh, onOpen, onData, onGraph, onDepth }: { theme: Theme; done: number; day: number; fresh: number; onOpen: () => void; onData: () => void; onGraph: () => void; onDepth: () => void }) {
   const pct = Math.min(done / DAILY_GOAL, 1);
   const hr = new Date().getHours();
   const greet = hr < 6 ? "De madrugada" : hr < 13 ? "Buenos días" : hr < 21 ? "Buenas tardes" : "Esta noche";
@@ -224,6 +225,14 @@ function Home({ theme, done, day, onOpen, onData, onGraph, onDepth }: { theme: T
           <View style={{ height: 5, borderRadius: 3, backgroundColor: theme.line, marginTop: 10, overflow: "hidden" }}>
             <View style={{ height: "100%", width: `${pct * 100}%`, backgroundColor: theme.accent, borderRadius: 3 }} />
           </View>
+          {/* señal de frescura (§2/§3): lo visto no se repite disfrazado de nuevo */}
+          <Text style={{ fontFamily: theme.ui, fontSize: 12.5, color: fresh === 0 ? theme.accent : theme.inkFaint, marginTop: 12, lineHeight: 18 }}>
+            {fresh === 0
+              ? "Has visto todo lo nuevo por ahora. Lo que venga será repaso — para traer material nuevo, entra en tu mente."
+              : fresh <= 4
+              ? `Te quedan ${fresh} cápsulas nuevas. Cuando se acaben, añade una materia en tu mente.`
+              : `${fresh} cápsulas nuevas te esperan.`}
+          </Text>
         </View>
       </View>
 

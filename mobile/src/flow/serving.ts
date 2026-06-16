@@ -118,6 +118,15 @@ export function pickCapsule(
   // ── 3) AVANCE NORMAL — interleaving + novelty ───────────────────
   let pool = all.filter((c) => isReviewable(c) && c.format !== "bridge" && !seen[c.id] && !sessionSeen.has(c.id));
   if (pool.length === 0) {
+    // SIN CONTENIDO NUEVO: la regla de oro es "nunca repetir disfrazado de nuevo".
+    // En vez de reciclar lo ya visto como si fuera fresco, REPASAMOS (honesto):
+    // un auto-recall de lo aprendido menos reciente. Lo visto vuelve como repaso,
+    // no como feed. La frescura real llega trayendo material nuevo (§2/§3).
+    const learned = all
+      .filter((c) => isReviewable(c) && seen[c.id] && !sessionSeen.has("review:" + c.id))
+      .sort((a, b) => (lastSeenAt[a.id] ?? 0) - (lastSeenAt[b.id] ?? 0));
+    if (learned.length) return buildAutoRecall(learned[0]);
+    // caso límite (nada aprendido y nada nuevo): reciclo suave para no romper la UX
     sessionSeen.clear();
     pool = all.filter((c) => isReviewable(c) && c.format !== "bridge" && !sessionSeen.has(c.id));
     if (pool.length === 0) pool = all.filter((c) => !sessionSeen.has(c.id));
@@ -125,4 +134,11 @@ export function pickCapsule(
   const diff = pool.filter((c) => c.queue.title !== lastQueue);
   if (diff.length) pool = diff;
   return weightedPick(pool, rng);
+}
+
+// Cuántas cápsulas NUEVAS (nunca vistas) te quedan disponibles. El inicio lo usa
+// para avisar cuando la frescura se agota → "trae material nuevo" (§2/§3).
+export function freshLeft(all: Capsule[], state: ExperimentState, sessionSeen: Set<string>): number {
+  const seen = state.seen;
+  return all.filter((c) => isReviewable(c) && c.format !== "bridge" && !seen[c.id] && !sessionSeen.has(c.id)).length;
 }
