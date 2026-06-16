@@ -23,11 +23,14 @@ import { loadFeed, FeedSource } from "./src/data/source";
 import { syncInteraction, syncSaved, syncNote } from "./src/lib/sync";
 import { pickCapsule, freshLeft } from "./src/flow/serving";
 import { loadState, saveState, resetState, emptyState, todayStr, daysSinceStart, loadUserCapsules, saveUserCapsules } from "./src/lib/storage";
+import { replenishMaterias, aiEnabled } from "./src/data/ai";
 import CapsuleView from "./src/flow/CapsuleView";
 import GraphView from "./src/flow/GraphView";
 import DepthView from "./src/flow/DepthView";
 
 const DAILY_GOAL = 5;
+const LOW_WATER = 8; // por debajo de tantas cápsulas nuevas, la IA repone sola
+const MAX_REPLENISH = 6; // tope de lotes auto-generados por sesión (freno de coste)
 type Screen = "home" | "capsule" | "reflect" | "done" | "data" | "graph" | "depth" | "onboarding";
 
 export default function App() {
@@ -49,6 +52,9 @@ export default function App() {
   const [source, setSource] = useState<FeedSource>("seed");
   const sessionSeen = useRef(new Set<string>());
   const lastQueue = useRef<string | null>(null);
+  const replenishing = useRef(false);
+  const replenishCount = useRef(0);
+  const [isReplenishing, setIsReplenishing] = useState(false);
 
   useEffect(() => {
     loadState().then((st) => {
@@ -65,6 +71,23 @@ export default function App() {
       setSource(r.source);
     });
   }, []);
+
+  // ── AUTO-REPOSICIÓN (§2/§3): la IA con manos. Cuando la frescura baja del umbral,
+  // genera SOLA un lote nuevo (tema + formatos que elige ella) en segundo plano. Topes:
+  // sólo en el inicio, uno en vuelo, y MAX_REPLENISH lotes por sesión (freno de coste). ──
+  useEffect(() => {
+    if (!state || !feed || view !== "home" || !aiEnabled()) return;
+    const um = state.userModel;
+    if (!um.motivations && !um.goals && !um.interests) return; // sin modelo, nada que personalizar
+    if (replenishing.current || replenishCount.current >= MAX_REPLENISH) return;
+    if (freshLeft(feed, state, sessionSeen.current) >= LOW_WATER) return;
+    replenishing.current = true;
+    setIsReplenishing(true);
+    const avoid = [...new Set(feed.map((c) => c.queue.title))];
+    replenishMaterias(um, avoid)
+      .then((caps) => { if (caps?.length) addCapsules(caps); })
+      .finally(() => { replenishCount.current += 1; replenishing.current = false; setIsReplenishing(false); });
+  }, [view, feed, state]);
 
   if (!loaded || !state || !feed) {
     return <View style={{ flex: 1, backgroundColor: THEMES.neutral.paper }} />;
@@ -170,7 +193,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: (view === "capsule" || view === "reflect" ? capsuleTheme : THEMES.neutral).paper }}>
       <StatusBar barStyle={(view === "capsule" || view === "reflect") && capsuleTheme.isDark ? "light-content" : "dark-content"} />
       {view === "onboarding" && <Onboarding theme={THEMES.neutral} onDone={finishOnboarding} onSkip={skipOnboarding} />}
-      {view === "home" && <Home theme={THEMES.neutral} done={done} day={daysSinceStart(state) + 1} fresh={fresh} onOpen={open} onData={() => setView("data")} onGraph={() => setView("graph")} onDepth={() => setView("depth")} />}
+      {view === "home" && <Home theme={THEMES.neutral} done={done} day={daysSinceStart(state) + 1} fresh={fresh} replenishing={isReplenishing} onOpen={open} onData={() => setView("data")} onGraph={() => setView("graph")} onDepth={() => setView("depth")} />}
       {view === "capsule" && current && (
         <Safe>
           <CapsuleView
@@ -255,7 +278,7 @@ function Onboarding({ theme, onDone, onSkip }: { theme: Theme; onDone: (um: User
   );
 }
 
-function Home({ theme, done, day, fresh, onOpen, onData, onGraph, onDepth }: { theme: Theme; done: number; day: number; fresh: number; onOpen: () => void; onData: () => void; onGraph: () => void; onDepth: () => void }) {
+function Home({ theme, done, day, fresh, replenishing, onOpen, onData, onGraph, onDepth }: { theme: Theme; done: number; day: number; fresh: number; replenishing: boolean; onOpen: () => void; onData: () => void; onGraph: () => void; onDepth: () => void }) {
   const pct = Math.min(done / DAILY_GOAL, 1);
   const hr = new Date().getHours();
   const greet = hr < 6 ? "De madrugada" : hr < 13 ? "Buenos días" : hr < 21 ? "Buenas tardes" : "Esta noche";
@@ -289,11 +312,13 @@ function Home({ theme, done, day, fresh, onOpen, onData, onGraph, onDepth }: { t
             <View style={{ height: "100%", width: `${pct * 100}%`, backgroundColor: theme.accent, borderRadius: 3 }} />
           </View>
           {/* señal de frescura (§2/§3): lo visto no se repite disfrazado de nuevo */}
-          <Text style={{ fontFamily: theme.ui, fontSize: 12.5, color: fresh === 0 ? theme.accent : theme.inkFaint, marginTop: 12, lineHeight: 18 }}>
-            {fresh === 0
+          <Text style={{ fontFamily: theme.ui, fontSize: 12.5, color: replenishing || fresh === 0 ? theme.accent : theme.inkFaint, marginTop: 12, lineHeight: 18 }}>
+            {replenishing
+              ? "✦ Cortex está creando ideas nuevas para ti…"
+              : fresh === 0
               ? "Has visto todo lo nuevo por ahora. Lo que venga será repaso — para traer material nuevo, entra en tu mente."
               : fresh <= 4
-              ? `Te quedan ${fresh} cápsulas nuevas. Cuando se acaben, añade una materia en tu mente.`
+              ? `Te quedan ${fresh} cápsulas nuevas${aiEnabled() ? " — Cortex repondrá solo en breve" : ", añade una materia en tu mente"}.`
               : `${fresh} cápsulas nuevas te esperan.`}
           </Text>
         </View>

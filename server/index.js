@@ -81,12 +81,14 @@ function genSystem({ title, type = "topic", theme, intent }) {
     `· quiz: question + 2-4 options (UNA con correct=true) + explanation. INCLUYE al menos 1.`,
     `· activity: challenge (reto para HACER hoy) + steps opcionales + why. INCLUYE al menos 1.`,
     `· interactive: scenario + 2 choices con outcome + insight.`,
+    `· visual: un mini mapa conceptual — nodes:[{id,label}] (3-6) + edges:[{from,to}] + caption. Para relaciones entre ideas.`,
     `· recall: prompt + reveal. Solo 0-1.`,
     ``,
+    `VARÍA DE VERDAD los formatos: que no se parezcan dos seguidos. Elige para cada idea la forma más sorprendente de mostrarla.`,
     `novelty_score: 0.4 repaso, 0.7-1.0 lo más contraintuitivo. estimated_seconds: 35-80.`,
     `Escribe en ESPAÑOL DE ESPAÑA (tú, no vos). reflection_prompt aplicado a la vida real del usuario.`,
     `Devuelve SOLO JSON válido (sin markdown): {"capsules":[{ "format":"...", "novelty_score":0.8, "estimated_seconds":60, "reflection_prompt":"...", ...campos del formato... }]}`,
-    `Campos → narrative: slides:[{type:"hook|develop|twist",text}]. stat: figure,unit,claim,reveal. quiz: question,options:[{label,correct}],explanation. activity: challenge,steps,why. interactive: scenario,choices:[{label,outcome}],insight. recall: prompt,reveal.`,
+    `Campos → narrative: slides:[{type:"hook|develop|twist",text}]. stat: figure,unit,claim,reveal. quiz: question,options:[{label,correct}],explanation. activity: challenge,steps,why. interactive: scenario,choices:[{label,outcome}],insight. visual: nodes:[{id,label}],edges:[{from,to}],caption. recall: prompt,reveal.`,
   ].join("\n");
 }
 
@@ -115,6 +117,13 @@ function assemble(raw, source, i) {
     case "interactive":
       if (!raw.scenario || !raw.choices?.length || !raw.insight) return null;
       return { ...base, format: "interactive", payload: { scenario: raw.scenario, choices: raw.choices, insight: raw.insight } };
+    case "visual": {
+      const nodes = (raw.nodes || []).filter((n) => n && n.id && n.label);
+      if (nodes.length < 2 || !raw.caption) return null;
+      const ids = new Set(nodes.map((n) => n.id));
+      const edges = (raw.edges || []).filter((e) => e && ids.has(e.from) && ids.has(e.to));
+      return { ...base, format: "visual", payload: { render: "concept_map", nodes, edges, caption: raw.caption } };
+    }
     case "quiz": {
       const opts = (raw.options || []).filter((o) => o && o.label);
       if ((!raw.question && !raw.scenario) || opts.length < 2 || !opts.some((o) => o.correct) || !raw.explanation) return null;
@@ -188,6 +197,40 @@ app.post("/generate", async (req, res) => {
   } catch (e) {
     console.error("generate:", e?.message ?? e);
     res.status(500).json({ error: "generate_failed" });
+  }
+});
+
+// /replenish: la IA con MANOS. Decide ELLA qué enseñar a continuación (profundizar
+// en algo que ya aprendes o traer una idea adyacente fresca) y en qué formatos, y
+// genera el lote. Es el motor de "constantemente ideas nuevas, sin repetir".
+const REPLENISH_SYSTEM = [
+  "Eres el curador del segundo cerebro de esta persona. Tú decides qué merece la pena enseñarle AHORA.",
+  "Elige UN ángulo nuevo: o profundizas en algo que ya aprende (una faceta que aún no ha visto), o traes una idea adyacente que le encajaría. NO repitas materias de la lista a evitar.",
+  "Luego genera 6-10 cápsulas, cada una UNA idea autónoma, contraintuitiva, que haga parar a leer. VARÍA los formatos de verdad (no todo frases).",
+  "Formatos disponibles: narrative (3 slides hook/develop/twist), stat (figure+claim+reveal), quiz (question+options[{label,correct}]+explanation), activity (challenge+steps+why), interactive (scenario+choices[{label,outcome}]+insight), visual (nodes[{id,label}]+edges[{from,to}]+caption), recall (prompt+reveal).",
+  "Español de España (tú, no vos). Devuelve SOLO JSON (sin markdown): {\"title\":\"...\",\"theme\":\"<uno de: " + THEMES.join(", ") + ">\",\"capsules\":[{format,novelty_score,estimated_seconds,reflection_prompt, ...campos del formato...}]}",
+].join(" ");
+
+app.post("/replenish", async (req, res) => {
+  try {
+    const { userModel, avoidTitles = [] } = req.body || {};
+    const content =
+      userBlock(userModel) +
+      `MATERIAS QUE YA TIENE (evita repetirlas como título, pero puedes profundizar en sus temas):\n${avoidTitles.length ? avoidTitles.map((t) => `- ${t}`).join("\n") : "(ninguna)"}`;
+    const msg = await anthropic.messages.create({
+      model: "claude-sonnet-4-6", max_tokens: 12000, system: REPLENISH_SYSTEM,
+      messages: [{ role: "user", content }],
+    });
+    const data = parseJson(textOf(msg));
+    const theme = THEMES.includes(data.theme) ? data.theme : "neutral";
+    const title = String(data.title || "Idea nueva").trim();
+    const source = { title, theme, type: "topic" };
+    const out = (data.capsules || []).map((c, i) => assemble(c, source, i)).filter(Boolean);
+    if (!out.length) return res.status(502).json({ error: "no_valid_capsules" });
+    res.json({ title, theme, capsules: out });
+  } catch (e) {
+    console.error("replenish:", e?.message ?? e);
+    res.status(500).json({ error: "replenish_failed" });
   }
 });
 

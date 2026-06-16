@@ -51,3 +51,10 @@ export async function generateMateria(title: string, theme: ThemeName, intent?: 
   const j = await postJSON<{ capsules: Capsule[] }>("/generate", { title, theme, intent }, 90000);
   return j?.capsules?.length ? j.capsules : null;
 }
+
+// La IA con MANOS: elige ELLA el tema y los formatos y genera un lote. Motor de
+// auto-reposición → "constantemente ideas nuevas, sin repetir".
+export async function replenishMaterias(userModel: UserModel, avoidTitles: string[]): Promise<Capsule[] | null> {
+  const j = await postJSON<{ title: string; theme: string; capsules: Capsule[] }>("/replenish", { userModel, avoidTitles }, 90000);
+  return j?.capsules?.length ? j.capsules : null;
+}
