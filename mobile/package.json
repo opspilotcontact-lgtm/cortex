@@ -43,6 +43,7 @@
     "db:seed": "tsx scripts/seed-db.ts",
     "generate": "tsx scripts/generate.ts",
     "generate:ai": "tsx scripts/generate-ai.ts",
+    "suggest": "tsx scripts/suggest.ts",
     "test:rls": "tsx scripts/test-rls.ts",
     "test:serving": "tsx scripts/test-serving.ts",
     "build:web": "expo export -p web"
