@@ -47,14 +47,15 @@ export async function chatWithBrain(question: string, userModel: UserModel, memo
 
 // Genera una materia entera (9-13 cápsulas) lista para servir. La generación tarda
 // (Claude destila el tema), así que damos un timeout amplio.
-export async function generateMateria(title: string, theme: ThemeName, intent?: string, userModel?: UserModel): Promise<Capsule[] | null> {
-  const j = await postJSON<{ capsules: Capsule[] }>("/generate", { title, theme, intent, userModel }, 90000);
+export async function generateMateria(title: string, theme: ThemeName, intent?: string, userModel?: UserModel, recent?: string[]): Promise<Capsule[] | null> {
+  const j = await postJSON<{ capsules: Capsule[] }>("/generate", { title, theme, intent, userModel, recent }, 90000);
   return j?.capsules?.length ? j.capsules : null;
 }
 
 // La IA con MANOS: elige ELLA el tema y los formatos y genera un lote. Motor de
-// auto-reposición → "constantemente ideas nuevas, sin repetir".
-export async function replenishMaterias(userModel: UserModel, avoidTitles: string[]): Promise<Capsule[] | null> {
-  const j = await postJSON<{ title: string; theme: string; capsules: Capsule[] }>("/replenish", { userModel, avoidTitles }, 90000);
+// auto-reposición → "constantemente ideas nuevas, sin repetir". `recent` = lo que
+// has escrito/reflexionado últimamente → el contenido sale a tu medida real.
+export async function replenishMaterias(userModel: UserModel, avoidTitles: string[], recent?: string[]): Promise<Capsule[] | null> {
+  const j = await postJSON<{ title: string; theme: string; capsules: Capsule[] }>("/replenish", { userModel, avoidTitles, recent }, 90000);
   return j?.capsules?.length ? j.capsules : null;
 }

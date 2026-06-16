@@ -20,9 +20,10 @@ interface Props {
   onComplete: () => void;
   onReview: (grade: ReviewGrade) => void;
   onClose: () => void;
+  onCoachAnswer?: (text: string) => void;
 }
 
-export default function CapsuleView({ capsule, theme, isSaved, onToggleSave, onComplete, onReview, onClose }: Props) {
+export default function CapsuleView({ capsule, theme, isSaved, onToggleSave, onComplete, onReview, onClose, onCoachAnswer }: Props) {
   return (
     <View style={[styles.fill, { backgroundColor: theme.paper }]}>
       <View style={styles.head}>
@@ -50,7 +51,7 @@ export default function CapsuleView({ capsule, theme, isSaved, onToggleSave, onC
       {capsule.format === "motion" && <MotionBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
       {capsule.format === "quiz" && <QuizBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
       {capsule.format === "activity" && <ActivityBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
-      {capsule.format === "coach" && <CoachBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
+      {capsule.format === "coach" && <CoachBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} onAnswer={onCoachAnswer} />}
     </View>
   );
 }
@@ -489,10 +490,11 @@ function ActivityBody({ payload, theme, onComplete }: { payload: ActivityPayload
 }
 
 // ── COACH — la IA te pone cara y te pregunta DIRECTO a ti (§8, §11) ─
-function CoachBody({ payload, theme, onComplete }: { payload: CoachPayload; theme: Theme; onComplete: () => void }) {
+function CoachBody({ payload, theme, onComplete, onAnswer }: { payload: CoachPayload; theme: Theme; onComplete: () => void; onAnswer?: (text: string) => void }) {
   const [answered, setAnswered] = useState(false);
   const [text, setText] = useState("");
   const reveal = useReveal(answered);
+  const submit = () => { if (text.trim()) onAnswer?.(text.trim()); setAnswered(true); };
   return (
     <View style={[styles.body, styles.bodyPad]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 22 }}>
@@ -510,7 +512,7 @@ function CoachBody({ payload, theme, onComplete }: { payload: CoachPayload; them
             placeholderTextColor={theme.inkFaint}
             style={{ marginTop: 22, minHeight: 88, backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.line, borderRadius: 16, padding: 15, fontFamily: theme.read, fontSize: 17, color: theme.ink, textAlignVertical: "top" }}
           />
-          <Pressable onPress={() => setAnswered(true)} style={({ pressed }) => [styles.primary, { backgroundColor: theme.ink, marginTop: 18 }, pressed && { opacity: 0.85 }]}>
+          <Pressable onPress={submit} style={({ pressed }) => [styles.primary, { backgroundColor: theme.ink, marginTop: 18 }, pressed && { opacity: 0.85 }]}>
             <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.paper }}>{text.trim() ? "Responder  →" : "Saltar  →"}</Text>
           </Pressable>
         </>

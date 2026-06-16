@@ -85,7 +85,8 @@ export default function App() {
     replenishing.current = true;
     setIsReplenishing(true);
     const avoid = [...new Set(feed.map((c) => c.queue.title))];
-    replenishMaterias(um, avoid)
+    const recent = state.notes.slice(-6).map((n) => n.text).filter(Boolean); // tu señal viva
+    replenishMaterias(um, avoid, recent)
       .then((caps) => { if (caps?.length) addCapsules(caps); })
       .finally(() => { replenishCount.current += 1; replenishing.current = false; setIsReplenishing(false); });
   }, [view, feed, state]);
@@ -152,6 +153,16 @@ export default function App() {
     );
   };
 
+  // respuesta al coach → se guarda en tu grafo como nota (antes se PERDÍA). Así lo
+  // que te sacas alimenta tu memoria y, vía userSignal, la generación futura.
+  const saveCoachAnswer = (text: string) => {
+    if (!current || current.format !== "coach" || !text.trim()) return;
+    const q = (current.payload as { question?: string }).question ?? current.reflection_prompt;
+    syncNote(current.atom_id, text.trim());
+    syncInteraction("reflected", current.id, { responseText: text.trim() });
+    persist({ ...state, notes: [...state.notes, { capsuleId: current.id, prompt: q, text: text.trim(), day: todayStr() }] });
+  };
+
   const toggleSave = () => {
     if (!current) return;
     const has = state.saved.includes(current.id);
@@ -204,6 +215,7 @@ export default function App() {
             onToggleSave={toggleSave}
             onComplete={complete}
             onReview={completeRecall}
+            onCoachAnswer={saveCoachAnswer}
             onClose={() => { persist(log(state, "skipped", current.id)); syncInteraction("skipped", current.id); setView("home"); }}
           />
         </Safe>
@@ -221,7 +233,7 @@ export default function App() {
       {view === "done" && <Done theme={THEMES.neutral} done={done} goal={DAILY_GOAL} onBack={() => setView("home")} />}
       {view === "data" && <Data theme={THEMES.neutral} state={state} goal={DAILY_GOAL} source={source} feedCount={feed.length} onBack={() => setView("home")} onReset={resetExperiment} />}
       {view === "graph" && <GraphView theme={THEMES.neutral} onClose={() => setView("home")} />}
-      {view === "depth" && <DepthView theme={THEMES.neutral} userModel={state.userModel} materias={[...new Set(feed.map((c) => c.queue.title))]} onSaveUserModel={(um) => persist({ ...state, userModel: um })} onCapsulesAdded={addCapsules} onClose={() => setView("home")} />}
+      {view === "depth" && <DepthView theme={THEMES.neutral} userModel={state.userModel} materias={[...new Set(feed.map((c) => c.queue.title))]} recent={state.notes.slice(-6).map((n) => n.text).filter(Boolean)} onSaveUserModel={(um) => persist({ ...state, userModel: um })} onCapsulesAdded={addCapsules} onClose={() => setView("home")} />}
     </GestureHandlerRootView>
   );
 }

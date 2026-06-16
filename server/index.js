@@ -66,15 +66,24 @@ function userBlock(userModel) {
   return parts.length ? `QUIÉN ES:\n${parts.join("\n")}\n\n` : "";
 }
 
+// lo que la persona ha escrito/reflexionado/respondido al coach últimamente → su
+// "señal viva". Personaliza la generación con lo que de verdad piensa AHORA.
+function recentBlock(recent) {
+  const items = (recent || []).map((s) => String(s).trim()).filter(Boolean).slice(-8);
+  if (!items.length) return "";
+  return `LO QUE HA ESCRITO/REFLEXIONADO ÚLTIMAMENTE (úsalo para afinar el ángulo, conéctalo si encaja):\n${items.map((s) => `- ${s.slice(0, 240)}`).join("\n")}\n\n`;
+}
+
 // ── generación de cápsulas (§9): mismo catálogo de plantillas y mismo assemble
 //    validado que scripts/ai/extract.ts, portado a JS. Devuelve Capsules listas. ──
-function genSystem({ title, type = "topic", theme, intent, userModel }) {
+function genSystem({ title, type = "topic", theme, intent, userModel, recent }) {
   return [
     `Eres un destilador de conocimiento para Cortex, una app de micro-aprendizaje anti-TikTok.`,
     `Dado "${title}" (${type}), genera entre 9 y 13 cápsulas. Cada una es UNA idea autónoma que se entiende sola.`,
     `Prioriza lo CONTRAINTUITIVO y provocador — lo que hace parar a leer. Nada de resúmenes lineales ni obviedades.`,
     `El usuario aprende esto porque: "${intent || "quiere entenderlo a fondo y aplicarlo"}". Adapta el ángulo a ese porqué.`,
     userModel ? userBlock(userModel).trim() : "",
+    recent ? recentBlock(recent).trim() : "",
     ``,
     `ESTO NO ES UNA APP DE FRASES. La mayoría de cápsulas deben ser INTERACTIVAS, animadas o visuales — no texto pasivo.`,
     `CATÁLOGO — elige para CADA idea la forma más viva de mostrarla, y que NO se repitan dos del mismo formato seguidas:`,
@@ -193,10 +202,10 @@ app.post("/chat", async (req, res) => {
 
 app.post("/generate", async (req, res) => {
   try {
-    const { title, theme, type, intent, userModel } = req.body || {};
+    const { title, theme, type, intent, userModel, recent } = req.body || {};
     if (!title || !String(title).trim() || !theme) return res.status(400).json({ error: "missing_title_or_theme" });
     if (!THEMES.includes(theme)) return res.status(400).json({ error: "bad_theme" });
-    const source = { title: String(title).trim(), theme, type: type || "topic", intent, userModel };
+    const source = { title: String(title).trim(), theme, type: type || "topic", intent, userModel, recent };
     const msg = await anthropic.messages.create({
       model: "claude-sonnet-4-6", max_tokens: 12000, system: genSystem(source),
       messages: [{ role: "user", content: `Genera las cápsulas de "${source.title}". Usa tu conocimiento del tema.` }],
@@ -225,9 +234,10 @@ const REPLENISH_SYSTEM = [
 
 app.post("/replenish", async (req, res) => {
   try {
-    const { userModel, avoidTitles = [] } = req.body || {};
+    const { userModel, avoidTitles = [], recent } = req.body || {};
     const content =
       userBlock(userModel) +
+      recentBlock(recent) +
       `MATERIAS QUE YA TIENE (evita repetirlas como título, pero puedes profundizar en sus temas):\n${avoidTitles.length ? avoidTitles.map((t) => `- ${t}`).join("\n") : "(ninguna)"}`;
     const msg = await anthropic.messages.create({
       model: "claude-sonnet-4-6", max_tokens: 12000, system: REPLENISH_SYSTEM,

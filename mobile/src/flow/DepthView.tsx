@@ -13,7 +13,7 @@ import { Capsule } from "../types";
 
 const WORLDS: ThemeName[] = ["habits", "systems", "behavioral", "wealth", "stoic", "influence", "negotiation", "manson", "ignite", "titans"];
 
-export default function DepthView({ theme, userModel, materias, onSaveUserModel, onCapsulesAdded, onClose }: { theme: Theme; userModel: UserModel; materias: string[]; onSaveUserModel: (um: UserModel) => void; onCapsulesAdded: (caps: Capsule[]) => void; onClose: () => void }) {
+export default function DepthView({ theme, userModel, materias, recent, onSaveUserModel, onCapsulesAdded, onClose }: { theme: Theme; userModel: UserModel; materias: string[]; recent: string[]; onSaveUserModel: (um: UserModel) => void; onCapsulesAdded: (caps: Capsule[]) => void; onClose: () => void }) {
   // ── §2 modelo del usuario: quién eres → todo lo que la IA te trae es para ti ──
   const [motivations, setMotivations] = useState(userModel.motivations);
   const [goals, setGoals] = useState(userModel.goals);
@@ -48,7 +48,7 @@ export default function DepthView({ theme, userModel, materias, onSaveUserModel,
   const generateAndAdd = async (t: string, th: ThemeName, intent?: string): Promise<boolean> => {
     setGenerating(t);
     setMsg(null);
-    const caps = await generateMateria(t, th, intent, userModel);
+    const caps = await generateMateria(t, th, intent, userModel, recent);
     setGenerating(null);
     if (caps && caps.length) {
       onCapsulesAdded(caps);
