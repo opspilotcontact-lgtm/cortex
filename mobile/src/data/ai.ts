@@ -3,7 +3,7 @@
 // devuelve null y la app sigue funcionando (frescura offline, recuperación local).
 
 import { AI_PROXY_URL } from "../lib/env";
-import { UserModel } from "../types";
+import { Capsule, ThemeName, UserModel } from "../types";
 
 export interface Suggestion {
   title: string;
@@ -43,4 +43,11 @@ export async function fetchSuggestions(userModel: UserModel, materias: string[])
 export async function chatWithBrain(question: string, userModel: UserModel, memory: string[]): Promise<string | null> {
   const j = await postJSON<{ answer: string }>("/chat", { question, userModel, memory });
   return j?.answer ?? null;
+}
+
+// Genera una materia entera (9-13 cápsulas) lista para servir. La generación tarda
+// (Claude destila el tema), así que damos un timeout amplio.
+export async function generateMateria(title: string, theme: ThemeName, intent?: string): Promise<Capsule[] | null> {
+  const j = await postJSON<{ capsules: Capsule[] }>("/generate", { title, theme, intent }, 90000);
+  return j?.capsules?.length ? j.capsules : null;
 }

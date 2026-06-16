@@ -8,11 +8,12 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { Theme, THEMES, themeFor } from "../theme";
 import { ThemeName, UserModel } from "../types";
 import { addNote, addQueue, searchMemory, askAI, MemoryHit } from "../data/contribute";
-import { fetchSuggestions, chatWithBrain, aiEnabled, Suggestion } from "../data/ai";
+import { fetchSuggestions, chatWithBrain, generateMateria, aiEnabled, Suggestion } from "../data/ai";
+import { Capsule } from "../types";
 
 const WORLDS: ThemeName[] = ["habits", "systems", "behavioral", "wealth", "stoic", "influence", "negotiation", "manson", "ignite", "titans"];
 
-export default function DepthView({ theme, userModel, materias, onSaveUserModel, onClose }: { theme: Theme; userModel: UserModel; materias: string[]; onSaveUserModel: (um: UserModel) => void; onClose: () => void }) {
+export default function DepthView({ theme, userModel, materias, onSaveUserModel, onCapsulesAdded, onClose }: { theme: Theme; userModel: UserModel; materias: string[]; onSaveUserModel: (um: UserModel) => void; onCapsulesAdded: (caps: Capsule[]) => void; onClose: () => void }) {
   // ── §2 modelo del usuario: quién eres → todo lo que la IA te trae es para ti ──
   const [motivations, setMotivations] = useState(userModel.motivations);
   const [goals, setGoals] = useState(userModel.goals);
@@ -42,9 +43,26 @@ export default function DepthView({ theme, userModel, materias, onSaveUserModel,
     setSuggestions(s ?? []);
     setLoadingSug(false);
   };
+  // generar = la IA destila la materia en 9-13 cápsulas y las mete en tu Flow ya
+  const [generating, setGenerating] = useState<string | null>(null);
+  const generateAndAdd = async (t: string, th: ThemeName, intent?: string): Promise<boolean> => {
+    setGenerating(t);
+    setMsg(null);
+    const caps = await generateMateria(t, th, intent);
+    setGenerating(null);
+    if (caps && caps.length) {
+      onCapsulesAdded(caps);
+      addQueue({ title: t, type: "topic", theme: th }); // best-effort a la BD si está viva
+      setMsg(`«${t}» lista con ${caps.length} cápsulas ✓ — ya están en tu Flow`);
+      return true;
+    }
+    const ok = await addQueue({ title: t, type: "topic", theme: th }); // sin IA: queda registrada
+    setMsg(ok ? `Materia «${t}» creada ✓ (la IA no estaba disponible; se llenará con el pipeline)` : "No se pudo crear");
+    return ok;
+  };
+
   const useSuggestion = async (sug: Suggestion) => {
-    const ok = await addQueue({ title: sug.title, type: "topic", theme: sug.theme as ThemeName });
-    setMsg(ok ? `Materia «${sug.title}» añadida ✓ (se llenará con el pipeline)` : "No se pudo añadir");
+    const ok = await generateAndAdd(sug.title, sug.theme as ThemeName, sug.intent);
     if (ok) setSuggestions((prev) => (prev ?? []).filter((x) => x.title !== sug.title));
   };
 
@@ -68,8 +86,7 @@ export default function DepthView({ theme, userModel, materias, onSaveUserModel,
   };
   const createMateria = async () => {
     if (!title.trim()) return;
-    const ok = await addQueue({ title, type: "topic", theme: picked });
-    setMsg(ok ? `Materia «${title.trim()}» creada ✓ (se llenará con el pipeline)` : "No se pudo crear");
+    const ok = await generateAndAdd(title.trim(), picked);
     if (ok) setTitle("");
   };
 
@@ -118,8 +135,8 @@ export default function DepthView({ theme, userModel, materias, onSaveUserModel,
         <View key={sug.title} style={{ marginTop: 14, backgroundColor: theme.surface, borderRadius: 16, borderLeftWidth: 3, borderLeftColor: themeFor(sug.theme as ThemeName).accent, padding: 16 }}>
           <Text style={{ fontFamily: theme.display, fontSize: 18, color: theme.ink, lineHeight: 23 }}>{sug.title}</Text>
           <Text style={{ fontFamily: theme.read, fontSize: 14.5, lineHeight: 21, color: theme.inkSoft, marginTop: 6 }}>{sug.why}</Text>
-          <Pressable onPress={() => useSuggestion(sug)} style={({ pressed }) => [{ marginTop: 12, alignSelf: "flex-start", borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16, backgroundColor: theme.ink }, pressed && { opacity: 0.85 }]}>
-            <Text style={{ fontFamily: theme.uiSemi, fontSize: 13.5, color: theme.paper }}>Añadir a mis materias  →</Text>
+          <Pressable disabled={generating === sug.title} onPress={() => useSuggestion(sug)} style={({ pressed }) => [{ marginTop: 12, alignSelf: "flex-start", borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16, backgroundColor: theme.ink }, (pressed || generating === sug.title) && { opacity: 0.7 }]}>
+            <Text style={{ fontFamily: theme.uiSemi, fontSize: 13.5, color: theme.paper }}>{generating === sug.title ? "Generando cápsulas…" : "Generar y añadir  →"}</Text>
           </Pressable>
         </View>
       ))}
@@ -169,8 +186,8 @@ export default function DepthView({ theme, userModel, materias, onSaveUserModel,
           <Pressable key={w} onPress={() => setPicked(w)} style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: themeFor(w).accent, borderWidth: picked === w ? 3 : 0, borderColor: theme.ink }} />
         ))}
       </View>
-      <Pressable onPress={createMateria} style={({ pressed }) => [s.btn, { borderWidth: 1.5, borderColor: theme.line, marginTop: 12 }, pressed && { opacity: 0.85 }]}>
-        <Text style={{ fontFamily: theme.uiSemi, fontSize: 15, color: theme.ink }}>Crear materia</Text>
+      <Pressable disabled={generating === title.trim()} onPress={createMateria} style={({ pressed }) => [s.btn, { borderWidth: 1.5, borderColor: theme.line, marginTop: 12 }, (pressed || generating === title.trim()) && { opacity: 0.7 }]}>
+        <Text style={{ fontFamily: theme.uiSemi, fontSize: 15, color: theme.ink }}>{generating === title.trim() && title.trim() ? "Generando cápsulas…" : aiEnabled() ? "Crear y generar cápsulas" : "Crear materia"}</Text>
       </Pressable>
 
       {msg && <Text style={{ fontFamily: theme.ui, fontSize: 13, color: theme.accent, marginTop: 16, textAlign: "center" }}>{msg}</Text>}

@@ -16,19 +16,19 @@ import { DMSerifDisplay_400Regular, DMSerifDisplay_400Regular_Italic } from "@ex
 import { EBGaramond_400Regular, EBGaramond_600SemiBold, EBGaramond_400Regular_Italic } from "@expo-google-fonts/eb-garamond";
 import { Anton_400Regular } from "@expo-google-fonts/anton";
 
-import { Capsule, ExperimentState, InteractionAction, ReviewGrade } from "./src/types";
+import { Capsule, ExperimentState, InteractionAction, ReviewGrade, UserModel } from "./src/types";
 import { schedule, firstSchedule } from "./src/flow/sm2";
 import { Theme, themeFor, THEMES } from "./src/theme";
 import { loadFeed, FeedSource } from "./src/data/source";
 import { syncInteraction, syncSaved, syncNote } from "./src/lib/sync";
 import { pickCapsule, freshLeft } from "./src/flow/serving";
-import { loadState, saveState, resetState, emptyState, todayStr, daysSinceStart } from "./src/lib/storage";
+import { loadState, saveState, resetState, emptyState, todayStr, daysSinceStart, loadUserCapsules, saveUserCapsules } from "./src/lib/storage";
 import CapsuleView from "./src/flow/CapsuleView";
 import GraphView from "./src/flow/GraphView";
 import DepthView from "./src/flow/DepthView";
 
 const DAILY_GOAL = 5;
-type Screen = "home" | "capsule" | "reflect" | "done" | "data" | "graph" | "depth";
+type Screen = "home" | "capsule" | "reflect" | "done" | "data" | "graph" | "depth" | "onboarding";
 
 export default function App() {
   const [loaded] = useFonts({
@@ -51,8 +51,19 @@ export default function App() {
   const lastQueue = useRef<string | null>(null);
 
   useEffect(() => {
-    loadState().then(setState);
-    loadFeed().then((r) => { setFeed(r.capsules); setSource(r.source); });
+    loadState().then((st) => {
+      setState(st);
+      // §2: si nunca te has presentado, te llevamos al onboarding (no escondido en Tu mente)
+      const um = st.userModel;
+      const empty = !um.motivations && !um.goals && !um.interests;
+      if (empty && !st.onboarded) setView("onboarding");
+    });
+    // el feed = contenido base (BD/caché/seed) + lo que la IA te ha generado en este equipo
+    Promise.all([loadFeed(), loadUserCapsules()]).then(([r, mine]) => {
+      const ids = new Set(r.capsules.map((c) => c.id));
+      setFeed([...r.capsules, ...mine.filter((c) => !ids.has(c.id))]);
+      setSource(r.source);
+    });
   }, []);
 
   if (!loaded || !state || !feed) {
@@ -128,9 +139,28 @@ export default function App() {
 
   const resetExperiment = async () => {
     await resetState();
+    await saveUserCapsules([]);
     setState(emptyState());
+    setFeed((prev) => (prev ? prev.filter((c) => !c.id.startsWith("gen-")) : prev));
     setView("home");
   };
+
+  // la IA generó una materia → la fusionamos en el feed y la persistimos (offline-first)
+  const addCapsules = (caps: Capsule[]) => {
+    setFeed((prev) => {
+      const base = prev ?? [];
+      const have = new Set(base.map((c) => c.id));
+      const fresh = caps.filter((c) => !have.has(c.id));
+      const next = [...base, ...fresh];
+      const mine = next.filter((c) => c.id.startsWith("gen-"));
+      saveUserCapsules(mine); // solo lo generado se persiste aparte
+      return next;
+    });
+  };
+
+  // onboarding inicial: guarda quién eres y marca que ya pasaste
+  const finishOnboarding = (um: UserModel) => { persist({ ...state, userModel: um, onboarded: true }); setView("home"); };
+  const skipOnboarding = () => { persist({ ...state, onboarded: true }); setView("home"); };
 
   const capsuleTheme = current ? themeFor(current.queue.theme) : THEMES.neutral;
   const done = state.byDay[todayStr()] ?? 0;
@@ -139,6 +169,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: (view === "capsule" || view === "reflect" ? capsuleTheme : THEMES.neutral).paper }}>
       <StatusBar barStyle={(view === "capsule" || view === "reflect") && capsuleTheme.isDark ? "light-content" : "dark-content"} />
+      {view === "onboarding" && <Onboarding theme={THEMES.neutral} onDone={finishOnboarding} onSkip={skipOnboarding} />}
       {view === "home" && <Home theme={THEMES.neutral} done={done} day={daysSinceStart(state) + 1} fresh={fresh} onOpen={open} onData={() => setView("data")} onGraph={() => setView("graph")} onDepth={() => setView("depth")} />}
       {view === "capsule" && current && (
         <Safe>
@@ -166,7 +197,7 @@ export default function App() {
       {view === "done" && <Done theme={THEMES.neutral} done={done} goal={DAILY_GOAL} onBack={() => setView("home")} />}
       {view === "data" && <Data theme={THEMES.neutral} state={state} goal={DAILY_GOAL} source={source} feedCount={feed.length} onBack={() => setView("home")} onReset={resetExperiment} />}
       {view === "graph" && <GraphView theme={THEMES.neutral} onClose={() => setView("home")} />}
-      {view === "depth" && <DepthView theme={THEMES.neutral} userModel={state.userModel} materias={[...new Set(feed.map((c) => c.queue.title))]} onSaveUserModel={(um) => persist({ ...state, userModel: um })} onClose={() => setView("home")} />}
+      {view === "depth" && <DepthView theme={THEMES.neutral} userModel={state.userModel} materias={[...new Set(feed.map((c) => c.queue.title))]} onSaveUserModel={(um) => persist({ ...state, userModel: um })} onCapsulesAdded={addCapsules} onClose={() => setView("home")} />}
     </GestureHandlerRootView>
   );
 }
@@ -189,6 +220,38 @@ function Btn({ label, onPress, theme, variant }: { label: string; onPress: () =>
     >
       <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: primary ? theme.paper : theme.ink }}>{label}</Text>
     </Pressable>
+  );
+}
+
+function Onboarding({ theme, onDone, onSkip }: { theme: Theme; onDone: (um: UserModel) => void; onSkip: () => void }) {
+  const [motivations, setMotivations] = useState("");
+  const [goals, setGoals] = useState("");
+  const [interests, setInterests] = useState("");
+  const can = !!(motivations.trim() || goals.trim() || interests.trim());
+  const field = { backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.line, borderRadius: 16, padding: 14, fontFamily: theme.read, fontSize: 16, color: theme.ink, marginTop: 6 } as const;
+  const lbl = { fontFamily: theme.uiSemi, fontSize: 13, color: theme.inkSoft, marginTop: 16 } as const;
+  return (
+    <ScrollView contentContainerStyle={[s.screen, { flexGrow: 1, justifyContent: "center" }]} keyboardShouldPersistTaps="handled">
+      <Text style={{ fontFamily: theme.ui, fontSize: 12.5, letterSpacing: 2, textTransform: "uppercase", color: theme.inkFaint, marginBottom: 14 }}>Antes de empezar</Text>
+      <Text style={{ fontFamily: theme.display, fontSize: 36, lineHeight: 40, color: theme.ink, letterSpacing: -0.6 }}>
+        ¿Quién <Text style={{ fontFamily: theme.displayItalic, color: theme.accent }}>eres</Text>?
+      </Text>
+      <Text style={{ fontFamily: theme.read, fontSize: 17, lineHeight: 25, color: theme.inkSoft, marginTop: 14 }}>
+        Cuanto mejor te entienda Cortex, más a tu medida será lo nuevo que te traiga cada vez. Puedes cambiarlo cuando quieras en tu mente.
+      </Text>
+      <Text style={lbl}>¿Qué te mueve a aprender?</Text>
+      <TextInput value={motivations} onChangeText={setMotivations} placeholder="Lo que de verdad te empuja…" placeholderTextColor={theme.inkFaint} multiline style={[field, { minHeight: 56, textAlignVertical: "top" }]} />
+      <Text style={lbl}>¿Qué quieres conseguir?</Text>
+      <TextInput value={goals} onChangeText={setGoals} placeholder="Tus objetivos concretos…" placeholderTextColor={theme.inkFaint} multiline style={[field, { minHeight: 56, textAlignVertical: "top" }]} />
+      <Text style={lbl}>¿Qué temas te tiran?</Text>
+      <TextInput value={interests} onChangeText={setInterests} placeholder="Hábitos, dinero, persuasión, estoicismo…" placeholderTextColor={theme.inkFaint} style={field} />
+      <View style={{ marginTop: 26 }}>
+        <Btn label="Empezar  →" onPress={() => onDone({ motivations: motivations.trim(), goals: goals.trim(), interests: interests.trim() })} theme={theme} variant={can ? "primary" : "ghost"} />
+      </View>
+      <Pressable onPress={onSkip} style={{ marginTop: 16, alignSelf: "center" }} hitSlop={8}>
+        <Text style={{ fontFamily: theme.ui, fontSize: 13, color: theme.inkFaint, textDecorationLine: "underline" }}>ahora no</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 

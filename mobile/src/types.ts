@@ -155,4 +155,5 @@ export interface ExperimentState {
   events: InteractionEvent[];
   reviews: Record<string, ReviewState>; // clave = id de la cápsula fuente (§7)
   userModel: UserModel; // §2: quién eres y qué te mueve → hace todo personal
+  onboarded: boolean; // ya pasó por el onboarding inicial (Sobre ti)
 }
