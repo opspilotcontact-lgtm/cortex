@@ -21,3 +21,10 @@ export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || LO
 // Auto-login de desarrollo (Fase 1 aún no tiene pantalla de auth).
 export const DEV_EMAIL = process.env.EXPO_PUBLIC_DEV_EMAIL || "dev@cortex.local";
 export const DEV_PASSWORD = process.env.EXPO_PUBLIC_DEV_PASSWORD || "cortex-dev-1234";
+
+// Proxy de IA (§10): guarda la API key en el servidor (server/). La app lo llama
+// para sugerencias y chat. En local cae al proxy local; en producción se define
+// EXPO_PUBLIC_AI_PROXY_URL en el entorno del sitio en Render (la URL del servicio
+// cortex-ai-proxy). Si está vacío en prod, la IA en vivo se desactiva con elegancia.
+const DEV = typeof __DEV__ !== "undefined" && __DEV__;
+export const AI_PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || (DEV ? "http://127.0.0.1:8787" : "");

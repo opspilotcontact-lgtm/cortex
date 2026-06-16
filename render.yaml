@@ -11,6 +11,7 @@
 # EXPO_PUBLIC_SUPABASE_ANON_KEY en el entorno del servicio en Render.
 
 services:
+  # ── 1) la app (sitio estático: export web de Expo) ──
   - type: web
     name: cortex
     runtime: static
@@ -28,3 +29,20 @@ services:
         sync: false   # opcional: tu Supabase público cuando lo tengas
       - key: EXPO_PUBLIC_SUPABASE_ANON_KEY
         sync: false
+      - key: EXPO_PUBLIC_AI_PROXY_URL
+        sync: false   # pega aquí la URL del servicio cortex-ai-proxy (abajo) tras el primer deploy
+
+  # ── 2) el proxy de IA (Node): guarda la API key, expone /suggest y /chat ──
+  - type: web
+    name: cortex-ai-proxy
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: ANTHROPIC_API_KEY
+        sync: false   # tu API key de Anthropic — SOLO vive aquí, nunca en el navegador

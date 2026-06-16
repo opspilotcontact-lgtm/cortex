@@ -1,0 +1,19 @@
+{
+  "name": "cortex-ai-proxy",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "description": "Proxy de IA de Cortex: guarda la API key en el servidor y expone suggest/chat a la app del enlace publico.",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

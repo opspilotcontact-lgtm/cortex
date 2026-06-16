@@ -166,7 +166,7 @@ export default function App() {
       {view === "done" && <Done theme={THEMES.neutral} done={done} goal={DAILY_GOAL} onBack={() => setView("home")} />}
       {view === "data" && <Data theme={THEMES.neutral} state={state} goal={DAILY_GOAL} source={source} feedCount={feed.length} onBack={() => setView("home")} onReset={resetExperiment} />}
       {view === "graph" && <GraphView theme={THEMES.neutral} onClose={() => setView("home")} />}
-      {view === "depth" && <DepthView theme={THEMES.neutral} userModel={state.userModel} onSaveUserModel={(um) => persist({ ...state, userModel: um })} onClose={() => setView("home")} />}
+      {view === "depth" && <DepthView theme={THEMES.neutral} userModel={state.userModel} materias={[...new Set(feed.map((c) => c.queue.title))]} onSaveUserModel={(um) => persist({ ...state, userModel: um })} onClose={() => setView("home")} />}
     </GestureHandlerRootView>
   );
 }

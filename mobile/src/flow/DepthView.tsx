@@ -8,10 +8,11 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { Theme, THEMES, themeFor } from "../theme";
 import { ThemeName, UserModel } from "../types";
 import { addNote, addQueue, searchMemory, askAI, MemoryHit } from "../data/contribute";
+import { fetchSuggestions, chatWithBrain, aiEnabled, Suggestion } from "../data/ai";
 
 const WORLDS: ThemeName[] = ["habits", "systems", "behavioral", "wealth", "stoic", "influence", "negotiation", "manson", "ignite", "titans"];
 
-export default function DepthView({ theme, userModel, onSaveUserModel, onClose }: { theme: Theme; userModel: UserModel; onSaveUserModel: (um: UserModel) => void; onClose: () => void }) {
+export default function DepthView({ theme, userModel, materias, onSaveUserModel, onClose }: { theme: Theme; userModel: UserModel; materias: string[]; onSaveUserModel: (um: UserModel) => void; onClose: () => void }) {
   // ── §2 modelo del usuario: quién eres → todo lo que la IA te trae es para ti ──
   const [motivations, setMotivations] = useState(userModel.motivations);
   const [goals, setGoals] = useState(userModel.goals);
@@ -32,13 +33,31 @@ export default function DepthView({ theme, userModel, onSaveUserModel, onClose }
   const [picked, setPicked] = useState<ThemeName>("habits");
   const [msg, setMsg] = useState<string | null>(null);
 
+  // sugerencias proactivas (§3): la IA propone qué aprender, leyendo tu «Sobre ti»
+  const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
+  const [loadingSug, setLoadingSug] = useState(false);
+  const getSuggestions = async () => {
+    setLoadingSug(true);
+    const s = await fetchSuggestions(userModel, materias);
+    setSuggestions(s ?? []);
+    setLoadingSug(false);
+  };
+  const useSuggestion = async (sug: Suggestion) => {
+    const ok = await addQueue({ title: sug.title, type: "topic", theme: sug.theme as ThemeName });
+    setMsg(ok ? `Materia «${sug.title}» añadida ✓ (se llenará con el pipeline)` : "No se pudo añadir");
+    if (ok) setSuggestions((prev) => (prev ?? []).filter((x) => x.title !== sug.title));
+  };
+
   const ask = async () => {
     if (!q.trim()) return;
     setSearching(true);
     setAiAnswer(null);
-    const [memory, ai] = await Promise.all([searchMemory(q), askAI(q)]);
+    const memory = await searchMemory(q); // recuperación local de tu conocimiento
     setHits(memory);
-    setAiAnswer(ai?.answer ?? null);
+    // generación: el proxy diverga contigo apoyándose en lo recuperado (RAG)
+    let answer = await chatWithBrain(q, userModel, memory.map((h) => h.body));
+    if (!answer) answer = (await askAI(q))?.answer ?? null; // fallback a la Edge Function
+    setAiAnswer(answer);
     setSearching(false);
   };
   const saveIdea = async () => {
@@ -80,6 +99,31 @@ export default function DepthView({ theme, userModel, onSaveUserModel, onClose }
         <Text style={{ fontFamily: theme.uiSemi, fontSize: 15, color: theme.paper }}>{savedMe ? "Guardado ✓" : "Guardar quién soy"}</Text>
       </Pressable>
 
+      {/* ── §3 Cortex te sugiere: proactivo, a tu medida ── */}
+      <Text style={section}>Cortex te sugiere</Text>
+      <Text style={{ fontFamily: theme.read, fontSize: 14, lineHeight: 21, color: theme.inkSoft, marginBottom: 12 }}>
+        {aiEnabled()
+          ? "Según quién eres y lo que ya aprendes, esto es lo que tu segundo cerebro te traería ahora."
+          : "Las sugerencias en vivo se activan al conectar el proxy de IA (EXPO_PUBLIC_AI_PROXY_URL)."}
+      </Text>
+      {aiEnabled() && (
+        <Pressable onPress={getSuggestions} style={({ pressed }) => [s.btn, { borderWidth: 1.5, borderColor: theme.line }, pressed && { opacity: 0.85 }]}>
+          <Text style={{ fontFamily: theme.uiSemi, fontSize: 15, color: theme.ink }}>{loadingSug ? "Pensando qué te traería…" : suggestions ? "Sugerir otras" : "¿Qué aprendo ahora?"}</Text>
+        </Pressable>
+      )}
+      {suggestions && suggestions.length === 0 && !loadingSug && (
+        <Text style={{ fontFamily: theme.ui, fontSize: 13, color: theme.inkFaint, marginTop: 10 }}>No hubo sugerencias ahora mismo. Prueba de nuevo en un momento.</Text>
+      )}
+      {suggestions?.map((sug) => (
+        <View key={sug.title} style={{ marginTop: 14, backgroundColor: theme.surface, borderRadius: 16, borderLeftWidth: 3, borderLeftColor: themeFor(sug.theme as ThemeName).accent, padding: 16 }}>
+          <Text style={{ fontFamily: theme.display, fontSize: 18, color: theme.ink, lineHeight: 23 }}>{sug.title}</Text>
+          <Text style={{ fontFamily: theme.read, fontSize: 14.5, lineHeight: 21, color: theme.inkSoft, marginTop: 6 }}>{sug.why}</Text>
+          <Pressable onPress={() => useSuggestion(sug)} style={({ pressed }) => [{ marginTop: 12, alignSelf: "flex-start", borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16, backgroundColor: theme.ink }, pressed && { opacity: 0.85 }]}>
+            <Text style={{ fontFamily: theme.uiSemi, fontSize: 13.5, color: theme.paper }}>Añadir a mis materias  →</Text>
+          </Pressable>
+        </View>
+      ))}
+
       {/* ── Preguntar a tu memoria ── */}
       <Text style={section}>Pregúntale a tu mente</Text>
       <TextInput value={q} onChangeText={setQ} placeholder="¿Qué sé sobre…? (p. ej. hábitos, miedo, dinero)" placeholderTextColor={theme.inkFaint} style={input} onSubmitEditing={ask} returnKeyType="search" />
@@ -105,7 +149,7 @@ export default function DepthView({ theme, userModel, onSaveUserModel, onClose }
             ))
           )}
           <Text style={{ fontFamily: theme.ui, fontSize: 12, color: theme.inkFaint, marginTop: 6, lineHeight: 18 }}>
-            Esto es recuperación de tu conocimiento. La respuesta conversacional de la IA (§10) se activa al conectar la API key.
+            Esto es lo que recuperé de tu conocimiento.{aiEnabled() ? " La respuesta de arriba la divaga tu segundo cerebro apoyándose en ello." : " La respuesta conversacional se activa al conectar el proxy de IA."}
           </Text>
         </View>
       )}
