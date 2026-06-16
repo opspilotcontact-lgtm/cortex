@@ -68,28 +68,31 @@ function userBlock(userModel) {
 
 // ── generación de cápsulas (§9): mismo catálogo de plantillas y mismo assemble
 //    validado que scripts/ai/extract.ts, portado a JS. Devuelve Capsules listas. ──
-function genSystem({ title, type = "topic", theme, intent }) {
+function genSystem({ title, type = "topic", theme, intent, userModel }) {
   return [
     `Eres un destilador de conocimiento para Cortex, una app de micro-aprendizaje anti-TikTok.`,
     `Dado "${title}" (${type}), genera entre 9 y 13 cápsulas. Cada una es UNA idea autónoma que se entiende sola.`,
     `Prioriza lo CONTRAINTUITIVO y provocador — lo que hace parar a leer. Nada de resúmenes lineales ni obviedades.`,
     `El usuario aprende esto porque: "${intent || "quiere entenderlo a fondo y aplicarlo"}". Adapta el ángulo a ese porqué.`,
+    userModel ? userBlock(userModel).trim() : "",
     ``,
-    `CATÁLOGO DE PLANTILLAS — NO uses solo frases. ELIGE la que mejor encaja con cada idea y VARÍA:`,
-    `· narrative (≈40%): 3 slides — hook contraintuitivo → develop con ejemplo → twist que da la vuelta.`,
+    `ESTO NO ES UNA APP DE FRASES. La mayoría de cápsulas deben ser INTERACTIVAS, animadas o visuales — no texto pasivo.`,
+    `CATÁLOGO — elige para CADA idea la forma más viva de mostrarla, y que NO se repitan dos del mismo formato seguidas:`,
+    `· quiz: question + 2-4 options (UNA correct=true) + explanation. Pon a prueba. (≥2)`,
+    `· activity: challenge (reto para HACER hoy en el mundo real) + steps + why. (≥2)`,
+    `· coach: la IA te habla y te pregunta DIRECTO a ti (2ª persona, atado a tus metas/intereses): question + placeholder + followUp (lo que aprendes al responder). (≥1)`,
+    `· interactive: scenario + 2 choices con outcome + insight. Un dilema donde decides.`,
+    `· visual: mini mapa conceptual — nodes:[{id,label}] (3-6) + edges:[{from,to}] + caption.`,
+    `· motion: escena ANIMADA. render ∈ {habit_loop, compound, anchor, countdown} + title + caption. Cuando una idea se entiende mejor en movimiento. (≥1 si encaja)`,
     `· stat: figure (cifra que golpea) + claim + reveal con el giro.`,
-    `· quiz: question + 2-4 options (UNA con correct=true) + explanation. INCLUYE al menos 1.`,
-    `· activity: challenge (reto para HACER hoy) + steps opcionales + why. INCLUYE al menos 1.`,
-    `· interactive: scenario + 2 choices con outcome + insight.`,
-    `· visual: un mini mapa conceptual — nodes:[{id,label}] (3-6) + edges:[{from,to}] + caption. Para relaciones entre ideas.`,
+    `· narrative: 3 slides hook→develop→twist. SOLO si la idea necesita desarrollo en 3 actos. MÁXIMO 2-3 de estas en todo el lote.`,
     `· recall: prompt + reveal. Solo 0-1.`,
     ``,
-    `VARÍA DE VERDAD los formatos: que no se parezcan dos seguidos. Elige para cada idea la forma más sorprendente de mostrarla.`,
     `novelty_score: 0.4 repaso, 0.7-1.0 lo más contraintuitivo. estimated_seconds: 35-80.`,
-    `Escribe en ESPAÑOL DE ESPAÑA (tú, no vos). reflection_prompt aplicado a la vida real del usuario.`,
+    `Escribe en ESPAÑOL DE ESPAÑA (tú, no vos). Háblale de tú, directo. reflection_prompt aplicado a SU vida real.`,
     `Devuelve SOLO JSON válido (sin markdown): {"capsules":[{ "format":"...", "novelty_score":0.8, "estimated_seconds":60, "reflection_prompt":"...", ...campos del formato... }]}`,
-    `Campos → narrative: slides:[{type:"hook|develop|twist",text}]. stat: figure,unit,claim,reveal. quiz: question,options:[{label,correct}],explanation. activity: challenge,steps,why. interactive: scenario,choices:[{label,outcome}],insight. visual: nodes:[{id,label}],edges:[{from,to}],caption. recall: prompt,reveal.`,
-  ].join("\n");
+    `Campos → quiz: question,options:[{label,correct}],explanation. activity: challenge,steps,why. coach: question,placeholder,followUp. interactive: scenario,choices:[{label,outcome}],insight. visual: nodes:[{id,label}],edges:[{from,to}],caption. motion: render,title,caption. stat: figure,unit,claim,reveal. narrative: slides:[{type:"hook|develop|twist",text}]. recall: prompt,reveal.`,
+  ].filter(Boolean).join("\n");
 }
 
 const slug = (t) =>
@@ -132,6 +135,14 @@ function assemble(raw, source, i) {
     case "activity":
       if (!raw.challenge || !raw.why) return null;
       return { ...base, format: "activity", payload: { challenge: raw.challenge, steps: (raw.steps || []).filter(Boolean), why: raw.why } };
+    case "coach":
+      if (!raw.question || !raw.followUp) return null;
+      return { ...base, format: "coach", payload: { question: raw.question, placeholder: raw.placeholder, followUp: raw.followUp } };
+    case "motion": {
+      const scenes = ["habit_loop", "compound", "anchor", "countdown"];
+      if (!scenes.includes(raw.render) || !raw.title || !raw.caption) return null;
+      return { ...base, format: "motion", payload: { render: raw.render, title: raw.title, caption: raw.caption } };
+    }
     default:
       return null;
   }
@@ -182,10 +193,10 @@ app.post("/chat", async (req, res) => {
 
 app.post("/generate", async (req, res) => {
   try {
-    const { title, theme, type, intent } = req.body || {};
+    const { title, theme, type, intent, userModel } = req.body || {};
     if (!title || !String(title).trim() || !theme) return res.status(400).json({ error: "missing_title_or_theme" });
     if (!THEMES.includes(theme)) return res.status(400).json({ error: "bad_theme" });
-    const source = { title: String(title).trim(), theme, type: type || "topic", intent };
+    const source = { title: String(title).trim(), theme, type: type || "topic", intent, userModel };
     const msg = await anthropic.messages.create({
       model: "claude-sonnet-4-6", max_tokens: 12000, system: genSystem(source),
       messages: [{ role: "user", content: `Genera las cápsulas de "${source.title}". Usa tu conocimiento del tema.` }],
@@ -206,8 +217,9 @@ app.post("/generate", async (req, res) => {
 const REPLENISH_SYSTEM = [
   "Eres el curador del segundo cerebro de esta persona. Tú decides qué merece la pena enseñarle AHORA.",
   "Elige UN ángulo nuevo: o profundizas en algo que ya aprende (una faceta que aún no ha visto), o traes una idea adyacente que le encajaría. NO repitas materias de la lista a evitar.",
-  "Luego genera 6-10 cápsulas, cada una UNA idea autónoma, contraintuitiva, que haga parar a leer. VARÍA los formatos de verdad (no todo frases).",
-  "Formatos disponibles: narrative (3 slides hook/develop/twist), stat (figure+claim+reveal), quiz (question+options[{label,correct}]+explanation), activity (challenge+steps+why), interactive (scenario+choices[{label,outcome}]+insight), visual (nodes[{id,label}]+edges[{from,to}]+caption), recall (prompt+reveal).",
+  "Genera 6-10 cápsulas, cada una UNA idea autónoma y contraintuitiva. ESTO NO ES UNA APP DE FRASES: la mayoría deben ser INTERACTIVAS, animadas o visuales, no texto pasivo. No repitas dos formatos iguales seguidos.",
+  "Formatos (prioriza los ricos): quiz (question+options[{label,correct}]+explanation), activity (challenge+steps+why), coach (la IA te pregunta DIRECTO a ti, 2ª persona atado a tus metas: question+placeholder+followUp), interactive (scenario+choices[{label,outcome}]+insight), visual (nodes[{id,label}]+edges[{from,to}]+caption), motion (escena animada: render∈{habit_loop,compound,anchor,countdown}+title+caption), stat (figure+claim+reveal). narrative (3 slides hook/develop/twist) SOLO 1-2 como mucho. recall (prompt+reveal) 0-1.",
+  "Incluye al menos 1 coach y al menos 1 quiz o activity. Háblale de tú, directo.",
   "Español de España (tú, no vos). Devuelve SOLO JSON (sin markdown): {\"title\":\"...\",\"theme\":\"<uno de: " + THEMES.join(", ") + ">\",\"capsules\":[{format,novelty_score,estimated_seconds,reflection_prompt, ...campos del formato...}]}",
 ].join(" ");
 

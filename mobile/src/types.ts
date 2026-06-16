@@ -17,7 +17,7 @@ export interface Slide {
   text: string;
 }
 
-export type CapsuleFormat = "narrative" | "interactive" | "visual" | "bridge" | "recall" | "stat" | "motion" | "quiz" | "activity";
+export type CapsuleFormat = "narrative" | "interactive" | "visual" | "bridge" | "recall" | "stat" | "motion" | "quiz" | "activity" | "coach";
 
 // ── payloads por formato (§8) ────────────────────────────────────
 export interface NarrativePayload {
@@ -64,6 +64,11 @@ export interface ActivityPayload {
   challenge: string; // el reto/ejercicio para hacer (hoy, en el mundo real)
   steps?: string[]; // pasos opcionales
   why: string; // por qué merece la pena (el principio detrás)
+}
+export interface CoachPayload {
+  question: string; // la IA te pregunta algo DIRECTO a ti (2ª persona, atado a tus metas)
+  placeholder?: string; // pista para tu respuesta
+  followUp: string; // lo que la IA te devuelve tras responder (el aprendizaje)
 }
 
 // ── Cápsula como UNIÓN DISCRIMINADA por `format` ──────────────────
@@ -113,7 +118,11 @@ export interface ActivityCapsule extends BaseCapsule {
   format: "activity";
   payload: ActivityPayload;
 }
-export type Capsule = NarrativeCapsule | InteractiveCapsule | BridgeCapsule | VisualCapsule | RecallCapsule | StatCapsule | MotionCapsule | QuizCapsule | ActivityCapsule;
+export interface CoachCapsule extends BaseCapsule {
+  format: "coach";
+  payload: CoachPayload;
+}
+export type Capsule = NarrativeCapsule | InteractiveCapsule | BridgeCapsule | VisualCapsule | RecallCapsule | StatCapsule | MotionCapsule | QuizCapsule | ActivityCapsule | CoachCapsule;
 
 // ── Telemetría (§7) ───────────────────────────────────────────────
 export type InteractionAction = "served" | "completed" | "skipped" | "saved" | "reflected";

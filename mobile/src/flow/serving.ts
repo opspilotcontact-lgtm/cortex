@@ -43,6 +43,8 @@ function recallCore(c: Capsule): { prompt: string; reveal: string } {
       return { prompt: c.payload.question, reveal: (c.payload.options.find((o) => o.correct)?.label ?? "") + " — " + c.payload.explanation };
     case "activity":
       return { prompt: `Aquel reto: «${c.payload.challenge}». ¿Por qué merecía la pena?`, reveal: c.payload.why };
+    case "coach":
+      return { prompt: c.payload.question, reveal: c.payload.followUp };
     case "recall":
       return { prompt: c.payload.prompt, reveal: c.payload.reveal };
   }

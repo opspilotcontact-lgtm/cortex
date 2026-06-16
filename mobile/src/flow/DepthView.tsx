@@ -48,7 +48,7 @@ export default function DepthView({ theme, userModel, materias, onSaveUserModel,
   const generateAndAdd = async (t: string, th: ThemeName, intent?: string): Promise<boolean> => {
     setGenerating(t);
     setMsg(null);
-    const caps = await generateMateria(t, th, intent);
+    const caps = await generateMateria(t, th, intent, userModel);
     setGenerating(null);
     if (caps && caps.length) {
       onCapsulesAdded(caps);

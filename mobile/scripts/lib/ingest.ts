@@ -46,6 +46,7 @@ export function atomTitle(c: Capsule): string {
     case "motion": return c.payload.title;
     case "quiz": return c.payload.question;
     case "activity": return c.payload.challenge;
+    case "coach": return c.payload.question;
   }
 }
 export function atomBody(c: Capsule): string {
@@ -59,6 +60,7 @@ export function atomBody(c: Capsule): string {
     case "motion": return `${c.payload.title}\n\n${c.payload.caption}`;
     case "quiz": return `${c.payload.question}\n\n${c.payload.explanation}`;
     case "activity": return `${c.payload.challenge}\n\n${c.payload.why}`;
+    case "coach": return `${c.payload.question}\n\n${c.payload.followUp}`;
   }
 }
 export const atomKind = (c: Capsule) => (c.novelty_score > 0.8 ? "counterintuitive" : "core_idea");

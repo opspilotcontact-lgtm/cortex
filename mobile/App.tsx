@@ -24,6 +24,7 @@ import { syncInteraction, syncSaved, syncNote } from "./src/lib/sync";
 import { pickCapsule, freshLeft } from "./src/flow/serving";
 import { loadState, saveState, resetState, emptyState, todayStr, daysSinceStart, loadUserCapsules, saveUserCapsules } from "./src/lib/storage";
 import { replenishMaterias, aiEnabled } from "./src/data/ai";
+import AiFace from "./src/flow/AiFace";
 import CapsuleView from "./src/flow/CapsuleView";
 import GraphView from "./src/flow/GraphView";
 import DepthView from "./src/flow/DepthView";
@@ -285,9 +286,12 @@ function Home({ theme, done, day, fresh, replenishing, onOpen, onData, onGraph, 
   return (
     <View style={[s.screen, { justifyContent: "space-between" }]}>
       <View style={s.rowBetween}>
-        <Text style={{ fontFamily: theme.display, fontSize: 21, color: theme.ink }}>
-          Cortex<Text style={{ color: theme.accent }}>.</Text>
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <AiFace theme={theme} size={32} />
+          <Text style={{ fontFamily: theme.display, fontSize: 21, color: theme.ink }}>
+            Cortex<Text style={{ color: theme.accent }}>.</Text>
+          </Text>
+        </View>
         <Text style={{ fontFamily: theme.ui, fontSize: 12.5, color: theme.inkSoft, textAlign: "right" }}>
           día <Text style={{ fontFamily: theme.uiSemi, color: theme.ink }}>{day}</Text> de tu{"\n"}experimento
         </Text>

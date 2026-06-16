@@ -3,13 +3,14 @@
 // Gesture Handler (swipe vertical, con tap de respaldo). §4 + §11.
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming, withDelay, runOnJS, Easing } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
-import { ActivityPayload, BridgePayload, Capsule, InteractivePayload, MotionPayload, NarrativePayload, QuizPayload, RecallPayload, ReviewGrade, StatPayload, VisualPayload } from "../types";
+import { ActivityPayload, BridgePayload, Capsule, CoachPayload, InteractivePayload, MotionPayload, NarrativePayload, QuizPayload, RecallPayload, ReviewGrade, StatPayload, VisualPayload } from "../types";
 import { Theme } from "../theme";
 import { buildScene } from "./scenes";
+import AiFace from "./AiFace";
 
 interface Props {
   capsule: Capsule;
@@ -49,6 +50,7 @@ export default function CapsuleView({ capsule, theme, isSaved, onToggleSave, onC
       {capsule.format === "motion" && <MotionBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
       {capsule.format === "quiz" && <QuizBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
       {capsule.format === "activity" && <ActivityBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
+      {capsule.format === "coach" && <CoachBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
     </View>
   );
 }
@@ -482,6 +484,45 @@ function ActivityBody({ payload, theme, onComplete }: { payload: ActivityPayload
           <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.paper }}>Hecho  →</Text>
         </Pressable>
       </Reanimated.View>
+    </View>
+  );
+}
+
+// ── COACH — la IA te pone cara y te pregunta DIRECTO a ti (§8, §11) ─
+function CoachBody({ payload, theme, onComplete }: { payload: CoachPayload; theme: Theme; onComplete: () => void }) {
+  const [answered, setAnswered] = useState(false);
+  const [text, setText] = useState("");
+  const reveal = useReveal(answered);
+  return (
+    <View style={[styles.body, styles.bodyPad]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 22 }}>
+        <AiFace theme={theme} size={54} speaking={!answered} />
+        <Text style={{ fontFamily: theme.kicker, fontSize: 11.5, letterSpacing: 2, textTransform: "uppercase", color: theme.accent }}>{theme.kickerPrefix}Cortex te pregunta</Text>
+      </View>
+      <Text style={{ fontFamily: theme.display, fontSize: 28, lineHeight: 35, color: theme.ink, letterSpacing: -0.4 }}>{payload.question}</Text>
+      {!answered ? (
+        <>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            multiline
+            placeholder={payload.placeholder || "Respóndele a tu segundo cerebro…"}
+            placeholderTextColor={theme.inkFaint}
+            style={{ marginTop: 22, minHeight: 88, backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.line, borderRadius: 16, padding: 15, fontFamily: theme.read, fontSize: 17, color: theme.ink, textAlignVertical: "top" }}
+          />
+          <Pressable onPress={() => setAnswered(true)} style={({ pressed }) => [styles.primary, { backgroundColor: theme.ink, marginTop: 18 }, pressed && { opacity: 0.85 }]}>
+            <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.paper }}>{text.trim() ? "Responder  →" : "Saltar  →"}</Text>
+          </Pressable>
+        </>
+      ) : (
+        <Reanimated.View style={reveal}>
+          {!!text.trim() && <Text style={{ fontFamily: theme.read, fontSize: 16, lineHeight: 24, color: theme.inkSoft, fontStyle: "italic", marginTop: 18 }}>"{text.trim()}"</Text>}
+          <Text style={{ fontFamily: theme.read, fontSize: 20, lineHeight: 29, color: theme.ink, marginTop: 18 }}>{payload.followUp}</Text>
+          <Pressable onPress={onComplete} style={({ pressed }) => [styles.primary, { backgroundColor: theme.ink, marginTop: 28 }, pressed && { opacity: 0.85 }]}>
+            <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.paper }}>Seguir  →</Text>
+          </Pressable>
+        </Reanimated.View>
+      )}
     </View>
   );
 }

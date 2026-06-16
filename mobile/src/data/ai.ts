@@ -47,8 +47,8 @@ export async function chatWithBrain(question: string, userModel: UserModel, memo
 
 // Genera una materia entera (9-13 cápsulas) lista para servir. La generación tarda
 // (Claude destila el tema), así que damos un timeout amplio.
-export async function generateMateria(title: string, theme: ThemeName, intent?: string): Promise<Capsule[] | null> {
-  const j = await postJSON<{ capsules: Capsule[] }>("/generate", { title, theme, intent }, 90000);
+export async function generateMateria(title: string, theme: ThemeName, intent?: string, userModel?: UserModel): Promise<Capsule[] | null> {
+  const j = await postJSON<{ capsules: Capsule[] }>("/generate", { title, theme, intent, userModel }, 90000);
   return j?.capsules?.length ? j.capsules : null;
 }
 
