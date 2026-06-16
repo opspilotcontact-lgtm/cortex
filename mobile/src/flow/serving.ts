@@ -50,6 +50,25 @@ function recallCore(c: Capsule): { prompt: string; reveal: string } {
   }
 }
 
+// firma de contenido de una cápsula (su idea central, normalizada) → sirve para
+// (a) detectar repetidos al fusionar y (b) decirle a la IA qué NO volver a crear.
+export function capsuleGist(c: Capsule): string {
+  let raw = "";
+  switch (c.format) {
+    case "narrative": raw = c.payload.slides?.[0]?.text ?? ""; break;
+    case "stat": raw = c.payload.claim; break;
+    case "quiz": raw = c.payload.question; break;
+    case "activity": raw = c.payload.challenge; break;
+    case "coach": raw = c.payload.question; break;
+    case "interactive": raw = c.payload.scenario; break;
+    case "visual": raw = c.payload.caption; break;
+    case "motion": raw = c.payload.title; break;
+    case "recall": raw = c.payload.prompt; break;
+    case "bridge": raw = c.payload.question; break;
+  }
+  return raw.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim().slice(0, 90);
+}
+
 export function buildAutoRecall(source: Capsule): Capsule {
   const { prompt, reveal } = recallCore(source);
   return {

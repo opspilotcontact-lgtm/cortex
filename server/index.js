@@ -229,16 +229,22 @@ const REPLENISH_SYSTEM = [
   "Genera 6-10 cápsulas, cada una UNA idea autónoma y contraintuitiva. ESTO NO ES UNA APP DE FRASES: la mayoría deben ser INTERACTIVAS, animadas o visuales, no texto pasivo. No repitas dos formatos iguales seguidos.",
   "Formatos (prioriza los ricos): quiz (question+options[{label,correct}]+explanation), activity (challenge+steps+why), coach (la IA te pregunta DIRECTO a ti, 2ª persona atado a tus metas: question+placeholder+followUp), interactive (scenario+choices[{label,outcome}]+insight), visual (nodes[{id,label}]+edges[{from,to}]+caption), motion (escena animada: render∈{habit_loop,compound,anchor,countdown}+title+caption), stat (figure+claim+reveal). narrative (3 slides hook/develop/twist) SOLO 1-2 como mucho. recall (prompt+reveal) 0-1.",
   "Incluye al menos 1 coach y al menos 1 quiz o activity. Háblale de tú, directo.",
+  "REGLA DE ORO: cada cápsula es una idea NUEVA de cero. Si te dan una lista de ideas ya vistas, no repitas ninguna ni algo que se le parezca — busca el ángulo que aún no ha tocado.",
   "Español de España (tú, no vos). Devuelve SOLO JSON (sin markdown): {\"title\":\"...\",\"theme\":\"<uno de: " + THEMES.join(", ") + ">\",\"capsules\":[{format,novelty_score,estimated_seconds,reflection_prompt, ...campos del formato...}]}",
 ].join(" ");
 
 app.post("/replenish", async (req, res) => {
   try {
-    const { userModel, avoidTitles = [], recent } = req.body || {};
+    const { userModel, avoidTitles = [], recent, avoidIdeas = [] } = req.body || {};
+    const avoid = avoidIdeas.map((s) => String(s).trim()).filter(Boolean).slice(-40);
+    const avoidBlock = avoid.length
+      ? `\n\nIDEAS QUE YA HA VISTO — PROHIBIDO REPETIRLAS NI PARECERSE. Cada cápsula tuya debe ser una idea DISTINTA a todas estas:\n${avoid.map((s) => `- ${s}`).join("\n")}`
+      : "";
     const content =
       userBlock(userModel) +
       recentBlock(recent) +
-      `MATERIAS QUE YA TIENE (evita repetirlas como título, pero puedes profundizar en sus temas):\n${avoidTitles.length ? avoidTitles.map((t) => `- ${t}`).join("\n") : "(ninguna)"}`;
+      `MATERIAS QUE YA TIENE (evita repetirlas como título, pero puedes profundizar en sus temas):\n${avoidTitles.length ? avoidTitles.map((t) => `- ${t}`).join("\n") : "(ninguna)"}` +
+      avoidBlock;
     const msg = await anthropic.messages.create({
       model: "claude-sonnet-4-6", max_tokens: 12000, system: REPLENISH_SYSTEM,
       messages: [{ role: "user", content }],

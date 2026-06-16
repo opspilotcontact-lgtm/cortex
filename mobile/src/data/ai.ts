@@ -55,7 +55,7 @@ export async function generateMateria(title: string, theme: ThemeName, intent?: 
 // La IA con MANOS: elige ELLA el tema y los formatos y genera un lote. Motor de
 // auto-reposición → "constantemente ideas nuevas, sin repetir". `recent` = lo que
 // has escrito/reflexionado últimamente → el contenido sale a tu medida real.
-export async function replenishMaterias(userModel: UserModel, avoidTitles: string[], recent?: string[]): Promise<Capsule[] | null> {
-  const j = await postJSON<{ title: string; theme: string; capsules: Capsule[] }>("/replenish", { userModel, avoidTitles, recent }, 90000);
+export async function replenishMaterias(userModel: UserModel, avoidTitles: string[], recent?: string[], avoidIdeas?: string[]): Promise<Capsule[] | null> {
+  const j = await postJSON<{ title: string; theme: string; capsules: Capsule[] }>("/replenish", { userModel, avoidTitles, recent, avoidIdeas }, 90000);
   return j?.capsules?.length ? j.capsules : null;
 }

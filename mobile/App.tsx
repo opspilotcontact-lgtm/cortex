@@ -21,7 +21,7 @@ import { schedule, firstSchedule } from "./src/flow/sm2";
 import { Theme, themeFor, THEMES } from "./src/theme";
 import { loadFeed, FeedSource } from "./src/data/source";
 import { syncInteraction, syncSaved, syncNote } from "./src/lib/sync";
-import { pickCapsule, freshLeft } from "./src/flow/serving";
+import { pickCapsule, freshLeft, capsuleGist } from "./src/flow/serving";
 import { loadState, saveState, resetState, emptyState, todayStr, daysSinceStart, loadUserCapsules, saveUserCapsules } from "./src/lib/storage";
 import { replenishMaterias, aiEnabled } from "./src/data/ai";
 import AiFace from "./src/flow/AiFace";
@@ -30,8 +30,8 @@ import GraphView from "./src/flow/GraphView";
 import DepthView from "./src/flow/DepthView";
 
 const DAILY_GOAL = 5;
-const LOW_WATER = 8; // por debajo de tantas cápsulas nuevas, la IA repone sola
-const MAX_REPLENISH = 6; // tope de lotes auto-generados por sesión (freno de coste)
+const LOW_WATER = 12; // por debajo de tantas cápsulas nuevas, la IA repone sola (colchón)
+const MAX_REPLENISH = 50; // backstop anti-bug (no es un tope real: con uso normal nunca se llega)
 type Screen = "home" | "capsule" | "reflect" | "done" | "data" | "graph" | "depth" | "onboarding";
 
 export default function App() {
@@ -86,7 +86,9 @@ export default function App() {
     setIsReplenishing(true);
     const avoid = [...new Set(feed.map((c) => c.queue.title))];
     const recent = state.notes.slice(-6).map((n) => n.text).filter(Boolean); // tu señal viva
-    replenishMaterias(um, avoid, recent)
+    // ideas que YA viste (las últimas ~30) → la IA no las repite ni se parece
+    const avoidIdeas = feed.filter((c) => state.seen[c.id]).slice(-30).map(capsuleGist).filter(Boolean);
+    replenishMaterias(um, avoid, recent, avoidIdeas)
       .then((caps) => { if (caps?.length) addCapsules(caps); })
       .finally(() => { replenishCount.current += 1; replenishing.current = false; setIsReplenishing(false); });
   }, [view, feed, state]);
@@ -180,15 +182,16 @@ export default function App() {
     setView("home");
   };
 
-  // la IA generó una materia → la fusionamos en el feed y la persistimos (offline-first)
+  // la IA generó una materia → la fusionamos en el feed y la persistimos (offline-first).
+  // Dedupe por ID y por GIST (idea central) → nunca entra un mensaje repetido.
   const addCapsules = (caps: Capsule[]) => {
     setFeed((prev) => {
       const base = prev ?? [];
-      const have = new Set(base.map((c) => c.id));
-      const fresh = caps.filter((c) => !have.has(c.id));
+      const haveIds = new Set(base.map((c) => c.id));
+      const haveGists = new Set(base.map(capsuleGist));
+      const fresh = caps.filter((c) => !haveIds.has(c.id) && !haveGists.has(capsuleGist(c)));
       const next = [...base, ...fresh];
-      const mine = next.filter((c) => c.id.startsWith("gen-"));
-      saveUserCapsules(mine); // solo lo generado se persiste aparte
+      saveUserCapsules(next.filter((c) => c.id.startsWith("gen-"))); // solo lo generado se persiste aparte
       return next;
     });
   };
