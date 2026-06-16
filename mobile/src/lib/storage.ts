@@ -11,7 +11,7 @@ export const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export function emptyState(): ExperimentState {
   const today = todayStr();
-  return { firstDay: today, byDay: { [today]: 0 }, seen: {}, saved: [], notes: [], events: [], reviews: {} };
+  return { firstDay: today, byDay: { [today]: 0 }, seen: {}, saved: [], notes: [], events: [], reviews: {}, userModel: { motivations: "", goals: "", interests: "" } };
 }
 
 export async function loadState(): Promise<ExperimentState> {

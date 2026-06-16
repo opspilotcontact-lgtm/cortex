@@ -6,12 +6,22 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Theme, THEMES, themeFor } from "../theme";
-import { ThemeName } from "../types";
+import { ThemeName, UserModel } from "../types";
 import { addNote, addQueue, searchMemory, askAI, MemoryHit } from "../data/contribute";
 
 const WORLDS: ThemeName[] = ["habits", "systems", "behavioral", "wealth", "stoic", "influence", "negotiation", "manson", "ignite", "titans"];
 
-export default function DepthView({ theme, onClose }: { theme: Theme; onClose: () => void }) {
+export default function DepthView({ theme, userModel, onSaveUserModel, onClose }: { theme: Theme; userModel: UserModel; onSaveUserModel: (um: UserModel) => void; onClose: () => void }) {
+  // ── §2 modelo del usuario: quién eres → todo lo que la IA te trae es para ti ──
+  const [motivations, setMotivations] = useState(userModel.motivations);
+  const [goals, setGoals] = useState(userModel.goals);
+  const [interests, setInterests] = useState(userModel.interests);
+  const [savedMe, setSavedMe] = useState(false);
+  const saveMe = () => {
+    onSaveUserModel({ motivations: motivations.trim(), goals: goals.trim(), interests: interests.trim() });
+    setSavedMe(true);
+  };
+
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<MemoryHit[] | null>(null);
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
@@ -46,6 +56,7 @@ export default function DepthView({ theme, onClose }: { theme: Theme; onClose: (
 
   const input = { backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.line, borderRadius: 16, padding: 14, fontFamily: theme.read, fontSize: 16, color: theme.ink } as const;
   const section = { fontFamily: theme.ui, fontSize: 12, letterSpacing: 1.5, textTransform: "uppercase" as const, color: theme.inkFaint, marginTop: 30, marginBottom: 12 };
+  const label = { fontFamily: theme.uiSemi, fontSize: 13, color: theme.inkSoft, marginBottom: 6 };
 
   return (
     <ScrollView contentContainerStyle={[s.screen, { flexGrow: 1 }]} keyboardShouldPersistTaps="handled">
@@ -53,6 +64,21 @@ export default function DepthView({ theme, onClose }: { theme: Theme; onClose: (
         <Text style={{ fontFamily: theme.display, fontSize: 28, color: theme.ink, letterSpacing: -0.4 }}>Tu mente</Text>
         <Pressable onPress={onClose} hitSlop={10}><Text style={{ fontFamily: theme.ui, fontSize: 13, color: theme.inkFaint }}>cerrar</Text></Pressable>
       </View>
+
+      {/* ── §2 Sobre ti: la base que hace todo personal ── */}
+      <Text style={[section, { marginTop: 22 }]}>Sobre ti</Text>
+      <Text style={{ fontFamily: theme.read, fontSize: 14, lineHeight: 21, color: theme.inkSoft, marginBottom: 14 }}>
+        Cuéntale a Cortex quién eres. Cuanto mejor te entienda, más a tu medida será lo nuevo que te traiga cada vez.
+      </Text>
+      <Text style={label}>¿Qué te mueve a aprender?</Text>
+      <TextInput value={motivations} onChangeText={(t) => { setMotivations(t); setSavedMe(false); }} placeholder="Lo que de verdad te empuja…" placeholderTextColor={theme.inkFaint} multiline style={[input, { minHeight: 56, textAlignVertical: "top" }]} />
+      <Text style={[label, { marginTop: 12 }]}>¿Qué quieres conseguir?</Text>
+      <TextInput value={goals} onChangeText={(t) => { setGoals(t); setSavedMe(false); }} placeholder="Tus objetivos concretos…" placeholderTextColor={theme.inkFaint} multiline style={[input, { minHeight: 56, textAlignVertical: "top" }]} />
+      <Text style={[label, { marginTop: 12 }]}>¿Qué temas te tiran?</Text>
+      <TextInput value={interests} onChangeText={(t) => { setInterests(t); setSavedMe(false); }} placeholder="Hábitos, dinero, persuasión, estoicismo…" placeholderTextColor={theme.inkFaint} style={input} />
+      <Pressable onPress={saveMe} style={({ pressed }) => [s.btn, { backgroundColor: theme.accent, marginTop: 12 }, pressed && { opacity: 0.85 }]}>
+        <Text style={{ fontFamily: theme.uiSemi, fontSize: 15, color: theme.paper }}>{savedMe ? "Guardado ✓" : "Guardar quién soy"}</Text>
+      </Pressable>
 
       {/* ── Preguntar a tu memoria ── */}
       <Text style={section}>Pregúntale a tu mente</Text>

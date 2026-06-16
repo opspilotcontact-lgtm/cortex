@@ -138,6 +138,13 @@ export interface ReviewState {
   due: number; // epoch ms en que vuelve a tocar
 }
 
+// ── Modelo del usuario (§2, pilar que hace todo personal) ─────────
+export interface UserModel {
+  motivations: string; // qué te mueve / para qué aprendes
+  goals: string; // objetivos concretos
+  interests: string; // temas que te interesan
+}
+
 // ── Estado persistido ─────────────────────────────────────────────
 export interface ExperimentState {
   firstDay: string;
@@ -147,4 +154,5 @@ export interface ExperimentState {
   notes: Note[];
   events: InteractionEvent[];
   reviews: Record<string, ReviewState>; // clave = id de la cápsula fuente (§7)
+  userModel: UserModel; // §2: quién eres y qué te mueve → hace todo personal
 }
