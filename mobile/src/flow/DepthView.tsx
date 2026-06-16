@@ -3,7 +3,7 @@
 // · Apuntar una idea → nota en tu grafo.
 // · Crear una materia nueva → el pipeline la rellenará (con API key).
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Theme, THEMES, themeFor } from "../theme";
 import { ThemeName, UserModel } from "../types";
@@ -65,6 +65,10 @@ export default function DepthView({ theme, userModel, materias, onSaveUserModel,
     const ok = await generateAndAdd(sug.title, sug.theme as ThemeName, sug.intent);
     if (ok) setSuggestions((prev) => (prev ?? []).filter((x) => x.title !== sug.title));
   };
+
+  // al entrar en Tu mente, si la IA está disponible, traemos propuestas SOLAS
+  // (antes estaban escondidas tras un botón → "no veo nuevas propuestas").
+  useEffect(() => { if (aiEnabled() && suggestions === null && !loadingSug) getSuggestions(); }, []);
 
   const ask = async () => {
     if (!q.trim()) return;

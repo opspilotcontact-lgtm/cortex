@@ -64,8 +64,16 @@ export function buildAutoRecall(source: Capsule): Capsule {
   } as Capsule;
 }
 
+// sesgo por formato (§11): Cortex NO es una app de frases. Los formatos ricos
+// (quiz, reto, coach con cara, interactivo, visual, animación) pesan más que la
+// narrativa pura, para que se VEAN aunque en el seed haya más narrativas.
+const FORMAT_WEIGHT: Record<string, number> = {
+  quiz: 2.1, activity: 2.0, coach: 2.1, interactive: 1.8, visual: 1.7, motion: 1.7,
+  stat: 1.4, bridge: 1.0, recall: 1.0, narrative: 0.8,
+};
+
 function weightedPick(pool: Capsule[], rng: Rng): Capsule {
-  const weights = pool.map((c) => Math.pow(c.novelty_score ?? 0.5, 2) + 0.15);
+  const weights = pool.map((c) => (Math.pow(c.novelty_score ?? 0.5, 2) + 0.15) * (FORMAT_WEIGHT[c.format] ?? 1));
   const total = weights.reduce((a, b) => a + b, 0);
   let r = rng() * total;
   for (let i = 0; i < pool.length; i++) {

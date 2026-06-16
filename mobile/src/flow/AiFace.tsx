@@ -13,10 +13,11 @@ export default function AiFace({ theme, size = 56, speaking = false }: { theme: 
   const mouth = useSharedValue(1);
 
   useEffect(() => {
-    // respira: sube y baja suave, en bucle reversible
-    bob.value = withRepeat(withTiming(1, { duration: 1900, easing: Easing.inOut(Easing.sin) }), -1, true);
-    // parpadea cada ~3.4s: cierra y abre rápido
-    blink.value = withRepeat(withSequence(withDelay(3000, withTiming(0.12, { duration: 90 })), withTiming(1, { duration: 110 })), -1, false);
+    // respira al entrar y luego REPOSA (finito): se siente viva sin animar para
+    // siempre → capturable y amable con la batería. Cada remontaje la reactiva.
+    bob.value = withRepeat(withTiming(1, { duration: 1900, easing: Easing.inOut(Easing.sin) }), 6, true, () => { bob.value = 0; });
+    // parpadea un par de veces y se queda con los ojos abiertos
+    blink.value = withDelay(2600, withRepeat(withSequence(withTiming(0.12, { duration: 90 }), withTiming(1, { duration: 110 }), withDelay(2800, withTiming(1, { duration: 1 }))), 2, false));
   }, []);
 
   useEffect(() => {
