@@ -17,7 +17,7 @@ export interface Slide {
   text: string;
 }
 
-export type CapsuleFormat = "narrative" | "interactive" | "visual" | "bridge" | "recall" | "stat" | "motion";
+export type CapsuleFormat = "narrative" | "interactive" | "visual" | "bridge" | "recall" | "stat" | "motion" | "quiz" | "activity";
 
 // ── payloads por formato (§8) ────────────────────────────────────
 export interface NarrativePayload {
@@ -54,6 +54,16 @@ export interface MotionPayload {
   render: string; // escena animada: "habit_loop" | "compound" | "anchor" | …
   title: string; // titular de la escena
   caption: string; // una línea bajo la animación
+}
+export interface QuizPayload {
+  question: string;
+  options: { label: string; correct: boolean }[]; // 2-4 opciones, exactamente una correcta
+  explanation: string; // por qué la correcta lo es (el aprendizaje)
+}
+export interface ActivityPayload {
+  challenge: string; // el reto/ejercicio para hacer (hoy, en el mundo real)
+  steps?: string[]; // pasos opcionales
+  why: string; // por qué merece la pena (el principio detrás)
 }
 
 // ── Cápsula como UNIÓN DISCRIMINADA por `format` ──────────────────
@@ -95,7 +105,15 @@ export interface MotionCapsule extends BaseCapsule {
   format: "motion";
   payload: MotionPayload;
 }
-export type Capsule = NarrativeCapsule | InteractiveCapsule | BridgeCapsule | VisualCapsule | RecallCapsule | StatCapsule | MotionCapsule;
+export interface QuizCapsule extends BaseCapsule {
+  format: "quiz";
+  payload: QuizPayload;
+}
+export interface ActivityCapsule extends BaseCapsule {
+  format: "activity";
+  payload: ActivityPayload;
+}
+export type Capsule = NarrativeCapsule | InteractiveCapsule | BridgeCapsule | VisualCapsule | RecallCapsule | StatCapsule | MotionCapsule | QuizCapsule | ActivityCapsule;
 
 // ── Telemetría (§7) ───────────────────────────────────────────────
 export type InteractionAction = "served" | "completed" | "skipped" | "saved" | "reflected";

@@ -44,6 +44,8 @@ export function atomTitle(c: Capsule): string {
     case "recall": return c.payload.prompt;
     case "stat": return c.payload.claim;
     case "motion": return c.payload.title;
+    case "quiz": return c.payload.question;
+    case "activity": return c.payload.challenge;
   }
 }
 export function atomBody(c: Capsule): string {
@@ -55,6 +57,8 @@ export function atomBody(c: Capsule): string {
     case "recall": return c.payload.reveal;
     case "stat": return `${c.payload.figure} ${c.payload.unit ?? ""}\n\n${c.payload.claim}\n\n${c.payload.reveal}`;
     case "motion": return `${c.payload.title}\n\n${c.payload.caption}`;
+    case "quiz": return `${c.payload.question}\n\n${c.payload.explanation}`;
+    case "activity": return `${c.payload.challenge}\n\n${c.payload.why}`;
   }
 }
 export const atomKind = (c: Capsule) => (c.novelty_score > 0.8 ? "counterintuitive" : "core_idea");

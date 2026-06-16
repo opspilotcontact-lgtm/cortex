@@ -7,7 +7,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming, withDelay, runOnJS, Easing } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
-import { BridgePayload, Capsule, InteractivePayload, MotionPayload, NarrativePayload, RecallPayload, ReviewGrade, StatPayload, VisualPayload } from "../types";
+import { ActivityPayload, BridgePayload, Capsule, InteractivePayload, MotionPayload, NarrativePayload, QuizPayload, RecallPayload, ReviewGrade, StatPayload, VisualPayload } from "../types";
 import { Theme } from "../theme";
 import { buildScene } from "./scenes";
 
@@ -47,6 +47,8 @@ export default function CapsuleView({ capsule, theme, isSaved, onToggleSave, onC
       {capsule.format === "recall" && <RecallBody key={capsule.id} payload={capsule.payload} theme={theme} onReview={onReview} />}
       {capsule.format === "stat" && <StatBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
       {capsule.format === "motion" && <MotionBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
+      {capsule.format === "quiz" && <QuizBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
+      {capsule.format === "activity" && <ActivityBody key={capsule.id} payload={capsule.payload} theme={theme} onComplete={onComplete} />}
     </View>
   );
 }
@@ -416,6 +418,71 @@ function MotionBody({ payload, theme, onComplete }: { payload: MotionPayload; th
         </Pressable>
       </View>
     </>
+  );
+}
+
+// ── QUIZ — pregunta → eliges → correcto/incorrecto + por qué (§8) ─
+function QuizBody({ payload, theme, onComplete }: { payload: QuizPayload; theme: Theme; onComplete: () => void }) {
+  const [chosen, setChosen] = useState<number | null>(null);
+  const reveal = useReveal(chosen);
+  return (
+    <View style={[styles.body, styles.bodyPad]}>
+      <Kicker theme={theme} color={theme.accent}>Pon a prueba</Kicker>
+      <Text style={{ fontFamily: theme.display, fontSize: 28, lineHeight: 34, color: theme.ink, letterSpacing: -0.4, marginBottom: 24 }}>{payload.question}</Text>
+      {chosen === null ? (
+        payload.options.map((o, i) => (
+          <Pressable key={i} onPress={() => setChosen(i)} style={({ pressed }) => [styles.choice, { borderColor: pressed ? theme.accent : theme.line, backgroundColor: theme.surface }]}>
+            <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.ink }}>{o.label}</Text>
+          </Pressable>
+        ))
+      ) : (
+        <Reanimated.View style={reveal}>
+          {payload.options.map((o, i) => {
+            const col = o.correct ? "#3fb950" : i === chosen ? theme.accent2 : theme.line;
+            return (
+              <View key={i} style={[styles.choice, { borderColor: col, backgroundColor: theme.surface, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}>
+                <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.ink, flex: 1 }}>{o.label}</Text>
+                {o.correct && <Text style={{ color: "#3fb950", fontSize: 17 }}>✓</Text>}
+                {i === chosen && !o.correct && <Text style={{ color: theme.accent2, fontSize: 17 }}>✗</Text>}
+              </View>
+            );
+          })}
+          <Text style={{ fontFamily: theme.read, fontSize: 18, lineHeight: 27, color: theme.inkSoft, marginTop: 18 }}>
+            {payload.options[chosen]?.correct ? "Correcto. " : "No exactamente. "}{payload.explanation}
+          </Text>
+          <Pressable onPress={onComplete} style={({ pressed }) => [styles.primary, { backgroundColor: theme.ink, marginTop: 26 }, pressed && { opacity: 0.85 }]}>
+            <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.paper }}>Seguir  →</Text>
+          </Pressable>
+        </Reanimated.View>
+      )}
+    </View>
+  );
+}
+
+// ── ACTIVITY — un reto para hacer en el mundo real (§8) ───────────
+function ActivityBody({ payload, theme, onComplete }: { payload: ActivityPayload; theme: Theme; onComplete: () => void }) {
+  const reveal = useReveal(0);
+  return (
+    <View style={[styles.body, styles.bodyPad]}>
+      <Reanimated.View style={reveal}>
+        <Kicker theme={theme} color={theme.accent}>Tu reto</Kicker>
+        <Text style={{ fontFamily: theme.display, fontSize: 29, lineHeight: 35, color: theme.ink, letterSpacing: -0.4 }}>{payload.challenge}</Text>
+        {!!payload.steps?.length && (
+          <View style={{ marginTop: 20 }}>
+            {payload.steps.map((s, i) => (
+              <View key={i} style={{ flexDirection: "row", marginBottom: 10 }}>
+                <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.accent, marginRight: 10 }}>{i + 1}.</Text>
+                <Text style={{ fontFamily: theme.read, fontSize: 17, lineHeight: 25, color: theme.ink, flex: 1 }}>{s}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        <Text style={{ fontFamily: theme.displayItalic, fontSize: 20, lineHeight: 28, color: theme.accent2, marginTop: 22 }}>{payload.why}</Text>
+        <Pressable onPress={onComplete} style={({ pressed }) => [styles.primary, { backgroundColor: theme.ink, marginTop: 28 }, pressed && { opacity: 0.85 }]}>
+          <Text style={{ fontFamily: theme.uiSemi, fontSize: 16, color: theme.paper }}>Hecho  →</Text>
+        </Pressable>
+      </Reanimated.View>
+    </View>
   );
 }
 
