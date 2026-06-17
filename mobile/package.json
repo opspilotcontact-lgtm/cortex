@@ -44,6 +44,7 @@
     "generate": "tsx scripts/generate.ts",
     "generate:ai": "tsx scripts/generate-ai.ts",
     "suggest": "tsx scripts/suggest.ts",
+    "export:seed": "tsx scripts/export-seed.ts",
     "test:rls": "tsx scripts/test-rls.ts",
     "test:serving": "tsx scripts/test-serving.ts",
     "build:web": "expo export -p web"

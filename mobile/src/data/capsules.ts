@@ -12,6 +12,7 @@ import { PACK as manson } from "../content/manson";
 import { PACK as robbins } from "../content/robbins";
 import { PACK as titans } from "../content/titans";
 import { PACK as retos } from "../content/retos";
+import { PACK as generadas } from "../content/generadas";
 
 const ORIGINAL_SEED: Capsule[] = [
   // ── Hábitos Atómicos (mundo "habits") ──────────────────────────
@@ -372,4 +373,5 @@ export const SEED_CAPSULES: Capsule[] = [
   ...ORIGINAL_SEED,
   ...behavioral, ...meditaciones, ...piense, ...influencia, ...voss, ...manson, ...robbins, ...titans,
   ...retos, // quiz · activity · coach · visual escritos a mano → formatos ricos por defecto
+  ...generadas, // pack generado por IA (export:seed) → todas las formas, viaja a la nube
 ];
